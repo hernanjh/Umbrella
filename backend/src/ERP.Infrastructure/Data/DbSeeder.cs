@@ -13,7 +13,9 @@ public static class DbSeeder
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
-        await context.Database.MigrateAsync();
+        // EnsureCreated creates all tables from the model without needing migration files.
+        // To switch to migrations later: run `dotnet ef migrations add Initial` and change this to MigrateAsync().
+        await context.Database.EnsureCreatedAsync();
 
         if (!await context.Roles.AnyAsync())
         {
