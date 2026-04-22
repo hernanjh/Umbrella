@@ -1,3 +1,4 @@
+using BCrypt.Net;
 using ERP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,14 +34,13 @@ public static class DbSeeder
                 FirstName = "Admin",
                 LastName = "Sistema",
                 Email = "admin@erp.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
+                PasswordHash = BCrypt.HashPassword("Admin123!"),
                 Theme = "light",
                 IsActive = true,
                 CreatedBy = "system"
             };
             context.Users.Add(admin);
             await context.SaveChangesAsync();
-
             context.UserRoles.Add(new UserRole { UserId = admin.Id, RoleId = adminRole.Id, AssignedBy = "system" });
             await context.SaveChangesAsync();
         }
