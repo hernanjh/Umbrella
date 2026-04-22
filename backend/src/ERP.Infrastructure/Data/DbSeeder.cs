@@ -1,4 +1,3 @@
-using BCrypt.Net;
 using ERP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,10 +17,11 @@ public static class DbSeeder
 
         if (!await context.Roles.AnyAsync())
         {
-            var adminRole = new Role { Code = "ADM", Name = "Administrador", IsSeller = false, CreatedBy = "system" };
-            var sellerRole = new Role { Code = "VND", Name = "Vendedor", IsSeller = true, CreatedBy = "system" };
-            var financeRole = new Role { Code = "FIN", Name = "Finanzas", IsSeller = false, CreatedBy = "system" };
-            context.Roles.AddRange(adminRole, sellerRole, financeRole);
+            context.Roles.AddRange(
+                new Role { Code = "ADM", Name = "Administrador", IsSeller = false, CreatedBy = "system" },
+                new Role { Code = "VND", Name = "Vendedor", IsSeller = true, CreatedBy = "system" },
+                new Role { Code = "FIN", Name = "Finanzas", IsSeller = false, CreatedBy = "system" }
+            );
             await context.SaveChangesAsync();
         }
 
@@ -34,7 +34,7 @@ public static class DbSeeder
                 FirstName = "Admin",
                 LastName = "Sistema",
                 Email = "admin@erp.com",
-                PasswordHash = BCrypt.HashPassword("Admin123!"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                 Theme = "light",
                 IsActive = true,
                 CreatedBy = "system"
@@ -69,7 +69,10 @@ public static class DbSeeder
 
         if (!await context.StockLocations.AnyAsync())
         {
-            context.StockLocations.Add(new StockLocation { Code = "DEP01", Name = "Depósito Central", Type = "warehouse", CreatedBy = "system" });
+            context.StockLocations.Add(new StockLocation
+            {
+                Code = "DEP01", Name = "Depósito Central", Type = "warehouse", CreatedBy = "system"
+            });
             await context.SaveChangesAsync();
         }
 
@@ -77,12 +80,9 @@ public static class DbSeeder
         {
             context.SystemConfigs.Add(new SystemConfig
             {
-                Code = "CFG001",
-                CompanyName = "Mi Empresa S.A.",
-                Currency = "ARS",
-                CurrencySymbol = "$",
-                AllowNegativeStock = false,
-                CreatedBy = "system"
+                Code = "CFG001", CompanyName = "Mi Empresa S.A.",
+                Currency = "ARS", CurrencySymbol = "$",
+                AllowNegativeStock = false, CreatedBy = "system"
             });
             await context.SaveChangesAsync();
         }

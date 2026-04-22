@@ -1,9 +1,9 @@
-using ERP.Domain.Interfaces;
 using ERP.Infrastructure.Data;
-using ERP.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ERP.Domain.Interfaces;
+using ERP.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.Infrastructure;
 
