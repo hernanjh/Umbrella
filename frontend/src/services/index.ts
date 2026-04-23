@@ -146,11 +146,26 @@ export const clientAccountService = {
   get: (clientId: number) => api.get(`/clients/${clientId}/account`).then(r => r.data.data),
 }
 
+export const cashService = {
+  getCurrent: () => api.get('/cash/current').then(r => r.data.data),
+  getSessions: (params?: any) => api.get('/cash/sessions', { params }).then(r => r.data.data),
+  getSession: (id: number) => api.get(`/cash/sessions/${id}`).then(r => r.data.data),
+  open: (data: any) => api.post('/cash/sessions/open', data).then(r => r.data.data),
+  close: (id: number, data: any) => api.post(`/cash/sessions/${id}/close`, data).then(r => r.data.data),
+  addMovement: (id: number, data: any) => api.post(`/cash/sessions/${id}/movements`, data).then(r => r.data.data),
+  deleteMovement: (id: number) => api.delete(`/cash/movements/${id}`),
+}
+
 export const reportsService = {
   salesByPeriod: (params: any) => api.get('/reports/sales-by-period', { params }).then(r => r.data.data),
   salesBySeller: (params: any) => api.get('/reports/sales-by-seller', { params }).then(r => r.data.data),
   salesByClient: (params: any) => api.get('/reports/sales-by-client', { params }).then(r => r.data.data),
   stock: (params: any) => api.get('/reports/stock', { params }).then(r => r.data.data),
+  payments: (params: any) => api.get('/reports/payments', { params }).then(r => r.data.data),
+  receivables: () => api.get('/reports/receivables').then(r => r.data.data),
+  payables: () => api.get('/reports/payables').then(r => r.data.data),
+  cash: (params: any) => api.get('/reports/cash', { params }).then(r => r.data.data),
+  dashboardSummary: () => api.get('/reports/dashboard-summary').then(r => r.data.data),
   exportExcel: (type: string, params: any) => api.get(`/reports/${type}/excel`, { params, responseType: 'blob' }),
   exportPdf: (type: string, params: any) => api.get(`/reports/${type}/pdf`, { params, responseType: 'blob' }),
 }

@@ -88,4 +88,122 @@ public class ReportService : IReportService
 
     public Task<byte[]> ExportToPdfAsync(string reportType, ReportQueryDto query)
         => Task.FromResult(Array.Empty<byte>());
+
+    public async Task<PaymentsReportDto> GetPaymentsReportAsync(ReportQueryDto q)
+    {
+        var salesQ = _db.SalesPayments.Include(p => p.PaymentMethod).Include(p => p.SalesInvoice).ThenInclude(i => i.Client)
+            .Where(p => p.PaymentDate >= q.DateFrom && p.PaymentDate <= q.DateTo);
+        if (q.PaymentMethodId.HasValue) salesQ = salesQ.Where(p => p.PaymentMethodId == q.PaymentMethodId);
+        if (q.ClientId.HasValue) salesQ = salesQ.Where(p => p.SalesInvoice.ClientId == q.ClientId);
+        var salesPayments = await salesQ.ToListAsync();
+
+        var purchaseQ = _db.PurchasePayments.Include(p => p.PaymentMethod).Include(p => p.PurchaseInvoice).ThenInclude(i => i.Supplier)
+            .Where(p => p.PaymentDate >= q.DateFrom && p.PaymentDate <= q.DateTo);
+        if (q.PaymentMethodId.HasValue) purchaseQ = purchaseQ.Where(p => p.PaymentMethodId == q.PaymentMethodId);
+        if (q.SupplierId.HasValue) purchaseQ = purchaseQ.Where(p => p.PurchaseInvoice.SupplierId == q.SupplierId);
+        var purchasePayments = await purchaseQ.ToListAsync();
+
+        var items = salesPayments.Select(p => new PaymentsReportItemDto(
+                p.Id, "sales", p.PaymentDate, p.SalesInvoice.Client.BusinessName, p.SalesInvoice.FullNumber,
+                p.PaymentMethod.Name, p.PaymentMethod.AffectsCash, p.Amount, p.Reference, p.CreatedBy))
+            .Concat(purchasePayments.Select(p => new PaymentsReportItemDto(
+                p.Id, "purchase", p.PaymentDate, p.PurchaseInvoice.Supplier.BusinessName, p.PurchaseInvoice.FullNumber,
+                p.PaymentMethod.Name, p.PaymentMethod.AffectsCash, p.Amount, p.Reference, p.CreatedBy)))
+            .OrderByDescending(i => i.PaymentDate).ToList();
+
+        var totalReceived = salesPayments.Sum(p => p.Amount);
+        var totalPaid = purchasePayments.Sum(p => p.Amount);
+        return new PaymentsReportDto(q.DateFrom, q.DateTo, items.Count, totalReceived, totalPaid, totalReceived - totalPaid, items);
+    }
+
+    public async Task<ReceivablesReportDto> GetReceivablesReportAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        var invoices = await _db.SalesInvoices.Include(i => i.Client)
+            .Where(i => (i.Status == "confirmed" || i.Status == "partially_paid") && i.BalanceDue > 0)
+            .ToListAsync();
+        var groups = invoices.GroupBy(i => i.Client);
+        var items = groups.Select(g => new ReceivableItemDto(
+                g.Key.Id, g.Key.Code, g.Key.BusinessName, g.Key.Cuit, g.Key.Phone,
+                g.Count(i => i.DueDate < today),
+                g.Where(i => i.DueDate < today).Sum(i => i.BalanceDue),
+                g.Count(i => i.DueDate >= today),
+                g.Where(i => i.DueDate >= today).Sum(i => i.BalanceDue),
+                g.Sum(i => i.BalanceDue),
+                g.Min(i => (DateTime?)i.InvoiceDate)))
+            .OrderByDescending(r => r.TotalDue)
+            .ToList();
+        return new ReceivablesReportDto(items.Count, items.Sum(r => r.TotalDue), items.Sum(r => r.OverdueAmount), items);
+    }
+
+    public async Task<PayablesReportDto> GetPayablesReportAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        var invoices = await _db.PurchaseInvoices.Include(i => i.Supplier)
+            .Where(i => (i.Status == "confirmed" || i.Status == "partially_paid") && i.BalanceDue > 0)
+            .ToListAsync();
+        var groups = invoices.GroupBy(i => i.Supplier);
+        var items = groups.Select(g => new PayableItemDto(
+                g.Key.Id, g.Key.Code, g.Key.BusinessName, g.Key.Cuit,
+                g.Count(i => i.DueDate < today),
+                g.Where(i => i.DueDate < today).Sum(i => i.BalanceDue),
+                g.Count(i => i.DueDate >= today),
+                g.Where(i => i.DueDate >= today).Sum(i => i.BalanceDue),
+                g.Sum(i => i.BalanceDue),
+                g.Min(i => (DateTime?)i.InvoiceDate)))
+            .OrderByDescending(r => r.TotalDue)
+            .ToList();
+        return new PayablesReportDto(items.Count, items.Sum(r => r.TotalDue), items.Sum(r => r.OverdueAmount), items);
+    }
+
+    public async Task<CashReportDto> GetCashReportAsync(ReportQueryDto q)
+    {
+        var movements = await _db.CashMovements.Include(m => m.PaymentMethod)
+            .Where(m => m.MovementDate >= q.DateFrom && m.MovementDate <= q.DateTo)
+            .ToListAsync();
+        var totalIncome = movements.Where(m => m.Type == "income" || m.Type == "opening").Sum(m => m.Amount);
+        var totalExpense = movements.Where(m => m.Type == "expense").Sum(m => m.Amount);
+        var byDay = movements.GroupBy(m => m.MovementDate.Date)
+            .Select(g => new CashReportDayDto(g.Key,
+                g.Where(m => m.Type == "income" || m.Type == "opening").Sum(m => m.Amount),
+                g.Where(m => m.Type == "expense").Sum(m => m.Amount),
+                g.Where(m => m.Type == "income" || m.Type == "opening").Sum(m => m.Amount) - g.Where(m => m.Type == "expense").Sum(m => m.Amount)))
+            .OrderBy(d => d.Date);
+        var byMethod = movements.Where(m => m.PaymentMethod != null).GroupBy(m => m.PaymentMethod!.Name)
+            .Select(g => new PaymentMethodSummaryDto(g.Key,
+                g.Where(m => m.Type == "income").Sum(m => m.Amount),
+                g.Where(m => m.Type == "expense").Sum(m => m.Amount)));
+        return new CashReportDto(q.DateFrom, q.DateTo, totalIncome, totalExpense, totalIncome - totalExpense, byDay, byMethod);
+    }
+
+    public async Task<DashboardSummaryDto> GetDashboardSummaryAsync()
+    {
+        var today = DateTime.UtcNow.Date;
+        var receivables = await _db.SalesInvoices
+            .Where(i => (i.Status == "confirmed" || i.Status == "partially_paid") && i.BalanceDue > 0)
+            .ToListAsync();
+        var payables = await _db.PurchaseInvoices
+            .Where(i => (i.Status == "confirmed" || i.Status == "partially_paid") && i.BalanceDue > 0)
+            .ToListAsync();
+        var session = await _db.CashSessions.Include(s => s.Movements)
+            .FirstOrDefaultAsync(s => s.Status == "open");
+        decimal cashBalance = 0;
+        if (session != null)
+        {
+            var active = session.Movements.Where(m => !m.IsDeleted);
+            cashBalance = active.Where(m => m.Type == "income" || m.Type == "opening").Sum(m => m.Amount)
+                - active.Where(m => m.Type == "expense").Sum(m => m.Amount)
+                + active.Where(m => m.Type == "adjustment").Sum(m => m.Amount);
+        }
+        var overdue = receivables.Where(i => i.DueDate < today).ToList();
+        return new DashboardSummaryDto(
+            receivables.Sum(i => i.BalanceDue),
+            payables.Sum(i => i.BalanceDue),
+            cashBalance,
+            overdue.Count,
+            overdue.Sum(i => i.BalanceDue),
+            session?.Id ?? 0,
+            session?.Code,
+            session?.OpeningDate);
+    }
 }

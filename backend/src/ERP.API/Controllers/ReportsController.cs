@@ -28,6 +28,26 @@ public class ReportsController : BaseController
     public async Task<IActionResult> Stock([FromQuery] ReportQueryDto query)
         => Ok(new { success = true, data = await _service.GetStockReportAsync(query) });
 
+    [HttpGet("payments")]
+    public async Task<IActionResult> Payments([FromQuery] ReportQueryDto query)
+        => Ok(new { success = true, data = await _service.GetPaymentsReportAsync(query) });
+
+    [HttpGet("receivables")]
+    public async Task<IActionResult> Receivables()
+        => Ok(new { success = true, data = await _service.GetReceivablesReportAsync() });
+
+    [HttpGet("payables")]
+    public async Task<IActionResult> Payables()
+        => Ok(new { success = true, data = await _service.GetPayablesReportAsync() });
+
+    [HttpGet("cash")]
+    public async Task<IActionResult> Cash([FromQuery] ReportQueryDto query)
+        => Ok(new { success = true, data = await _service.GetCashReportAsync(query) });
+
+    [HttpGet("dashboard-summary")]
+    public async Task<IActionResult> DashboardSummary()
+        => Ok(new { success = true, data = await _service.GetDashboardSummaryAsync() });
+
     [HttpGet("{reportType}/excel")]
     public async Task<IActionResult> ExportExcel(string reportType, [FromQuery] ReportQueryDto query)
     {

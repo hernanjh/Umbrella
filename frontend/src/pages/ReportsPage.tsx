@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
-import { Download, BarChart2, Users, Package, FileText } from 'lucide-react'
+import { Download, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
 import toast from 'react-hot-toast'
 
-type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'stock'
+type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'stock' | 'payments' | 'cash' | 'receivables' | 'payables'
 
 export default function ReportsPage() {
   const [active, setActive] = useState<ReportType>('sales-by-period')
@@ -21,9 +21,16 @@ export default function ReportsPage() {
       if (active === 'sales-by-period') return reportsService.salesByPeriod(params)
       if (active === 'sales-by-seller') return reportsService.salesBySeller(params)
       if (active === 'sales-by-client') return reportsService.salesByClient(params)
+      if (active === 'payments') return reportsService.payments(params)
+      if (active === 'cash') return reportsService.cash(params)
+      if (active === 'receivables') return reportsService.receivables()
+      if (active === 'payables') return reportsService.payables()
       return reportsService.stock(params)
     }
   })
+
+  const fmt = (n: any) => n == null ? '—' : `$ ${(+n).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+  const showDateFilters = active !== 'receivables' && active !== 'payables'
 
   const handleExcelExport = async () => {
     try {
@@ -39,6 +46,10 @@ export default function ReportsPage() {
     { key: 'sales-by-seller' as const, label: 'Ventas por Vendedor', icon: <Users className="w-4 h-4" /> },
     { key: 'sales-by-client' as const, label: 'Ventas por Cliente', icon: <FileText className="w-4 h-4" /> },
     { key: 'stock' as const, label: 'Estado de Stock', icon: <Package className="w-4 h-4" /> },
+    { key: 'payments' as const, label: 'Pagos', icon: <Banknote className="w-4 h-4" /> },
+    { key: 'cash' as const, label: 'Caja', icon: <Wallet className="w-4 h-4" /> },
+    { key: 'receivables' as const, label: 'Por Cobrar', icon: <CreditCard className="w-4 h-4" /> },
+    { key: 'payables' as const, label: 'Por Pagar', icon: <CreditCard className="w-4 h-4" /> },
   ]
 
   return (
@@ -59,17 +70,19 @@ export default function ReportsPage() {
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="label mb-0">Desde</label>
-          <input type="date" className="input w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+      {showDateFilters && (
+        <div className="card p-4 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="label mb-0">Desde</label>
+            <input type="date" className="input w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="label mb-0">Hasta</label>
+            <input type="date" className="input w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+          <button className="btn-primary btn-sm" onClick={() => refetch()}>Aplicar</button>
         </div>
-        <div className="flex items-center gap-2">
-          <label className="label mb-0">Hasta</label>
-          <input type="date" className="input w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        </div>
-        <button className="btn-primary btn-sm" onClick={() => refetch()}>Aplicar</button>
-      </div>
+      )}
 
       {/* Content */}
       <div className="card p-5">
@@ -119,6 +132,124 @@ export default function ReportsPage() {
           <table className="table"><thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Costo Promedio</th><th>Valor Total</th><th>Alerta</th></tr></thead>
             <tbody>{(data.items ?? []).map((i: any) => <tr key={i.productId}><td className="font-mono">{i.productCode}</td><td>{i.productName}</td><td>{i.categoryName}</td><td>{i.totalStock}</td><td>$ {i.averagePurchasePrice?.toLocaleString()}</td><td>$ {i.totalValue?.toLocaleString()}</td><td>{i.belowMinimum ? <span className="badge-red">Bajo mínimo</span> : <span className="badge-green">OK</span>}</td></tr>)}</tbody>
           </table>
+        )}
+
+        {!isLoading && active === 'payments' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-green-700">{fmt(data.totalReceived)}</p>
+                <p className="text-sm text-gray-500 mt-1">Cobrado</p>
+              </div>
+              <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-red-700">{fmt(data.totalPaid)}</p>
+                <p className="text-sm text-gray-500 mt-1">Pagado</p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-blue-700">{fmt(data.netFlow)}</p>
+                <p className="text-sm text-gray-500 mt-1">Flujo neto</p>
+              </div>
+            </div>
+            <table className="table">
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Contraparte</th><th>Comprobante</th><th>Forma</th><th>Ref.</th><th className="text-right">Monto</th></tr></thead>
+              <tbody>{(data.items ?? []).map((i: any) => (
+                <tr key={`${i.kind}-${i.paymentId}`}>
+                  <td className="text-xs">{format(new Date(i.paymentDate), 'dd/MM/yyyy')}</td>
+                  <td><span className={`badge-${i.kind === 'sales' ? 'green' : 'red'}`}>{i.kind === 'sales' ? 'Cobro' : 'Pago'}</span></td>
+                  <td>{i.partyName}</td>
+                  <td className="font-mono text-xs">{i.invoiceFullNumber}</td>
+                  <td>{i.paymentMethodName}{i.affectsCash ? <span className="text-xs text-gray-500 ml-1">(caja)</span> : null}</td>
+                  <td className="text-gray-500 text-xs">{i.reference ?? ''}</td>
+                  <td className={`text-right font-mono ${i.kind === 'sales' ? 'text-green-700' : 'text-red-600'}`}>{i.kind === 'sales' ? '+' : '-'} {fmt(i.amount)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+
+        {!isLoading && active === 'cash' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-green-700">{fmt(data.totalIncome)}</p>
+                <p className="text-sm text-gray-500 mt-1">Ingresos</p>
+              </div>
+              <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-red-700">{fmt(data.totalExpense)}</p>
+                <p className="text-sm text-gray-500 mt-1">Egresos</p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-blue-700">{fmt(data.netFlow)}</p>
+                <p className="text-sm text-gray-500 mt-1">Flujo neto</p>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={data.byDay ?? []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickFormatter={d => format(new Date(d), 'dd/MM')} tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: any) => fmt(v)} />
+                <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div>
+              <h4 className="font-semibold mb-2 text-sm text-gray-700 dark:text-gray-300">Por forma de pago</h4>
+              <table className="table"><thead><tr><th>Forma de pago</th><th className="text-right">Ingresos</th><th className="text-right">Egresos</th></tr></thead>
+                <tbody>{(data.byPaymentMethod ?? []).map((p: any, idx: number) => (
+                  <tr key={idx}><td>{p.paymentMethodName}</td><td className="text-right font-mono text-green-700">{fmt(p.income)}</td><td className="text-right font-mono text-red-600">{fmt(p.expense)}</td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && active === 'receivables' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-amber-700">{fmt(data.totalDue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Total por cobrar</p>
+              </div>
+              <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-red-700">{fmt(data.totalOverdue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Vencido</p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-blue-700">{data.clientCount}</p>
+                <p className="text-sm text-gray-500 mt-1">Clientes</p>
+              </div>
+            </div>
+            <table className="table"><thead><tr><th>Cliente</th><th>CUIT</th><th className="text-right">Al día</th><th className="text-right">Vencido</th><th className="text-right">Total</th></tr></thead>
+              <tbody>{(data.items ?? []).map((c: any) => (
+                <tr key={c.clientId}><td>{c.clientName}</td><td>{c.cuit}</td><td className="text-right font-mono">{fmt(c.pendingAmount)}</td><td className={`text-right font-mono ${c.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>{fmt(c.overdueAmount)}</td><td className="text-right font-mono font-bold">{fmt(c.totalDue)}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+
+        {!isLoading && active === 'payables' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-amber-700">{fmt(data.totalDue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Total por pagar</p>
+              </div>
+              <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-red-700">{fmt(data.totalOverdue)}</p>
+                <p className="text-sm text-gray-500 mt-1">Vencido</p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-blue-700">{data.supplierCount}</p>
+                <p className="text-sm text-gray-500 mt-1">Proveedores</p>
+              </div>
+            </div>
+            <table className="table"><thead><tr><th>Proveedor</th><th>CUIT</th><th className="text-right">Al día</th><th className="text-right">Vencido</th><th className="text-right">Total</th></tr></thead>
+              <tbody>{(data.items ?? []).map((s: any) => (
+                <tr key={s.supplierId}><td>{s.supplierName}</td><td>{s.cuit}</td><td className="text-right font-mono">{fmt(s.pendingAmount)}</td><td className={`text-right font-mono ${s.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>{fmt(s.overdueAmount)}</td><td className="text-right font-mono font-bold">{fmt(s.totalDue)}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

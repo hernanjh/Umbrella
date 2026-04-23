@@ -1,25 +1,29 @@
 import { useQuery } from '@tanstack/react-query'
-import { salesService, purchasesService, stockService, clientsService, productsService } from '../services'
+import { useNavigate } from 'react-router-dom'
+import { salesService, clientsService, productsService, reportsService } from '../services'
 import StatCard from '../components/ui/StatCard'
-import { FileText, ShoppingCart, Package, Users, TrendingUp, AlertTriangle, DollarSign, Warehouse } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts'
+import { FileText, Package, Users, DollarSign, CreditCard, AlertTriangle, Wallet, TrendingDown } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const today = new Date()
   const from = format(subDays(today, 30), 'yyyy-MM-dd')
   const to = format(today, 'yyyy-MM-dd')
 
-  const { data: salesReport } = useQuery({ queryKey: ['report-sales', from, to], queryFn: () => import('../services').then(m => m.reportsService.salesByPeriod({ dateFrom: from, dateTo: to })) })
-  const { data: stockReport } = useQuery({ queryKey: ['report-stock'], queryFn: () => import('../services').then(m => m.reportsService.stock({ dateFrom: from, dateTo: to })) })
+  const { data: salesReport } = useQuery({ queryKey: ['report-sales', from, to], queryFn: () => reportsService.salesByPeriod({ dateFrom: from, dateTo: to }) })
+  const { data: stockReport } = useQuery({ queryKey: ['report-stock'], queryFn: () => reportsService.stock({ dateFrom: from, dateTo: to }) })
+  const { data: summary } = useQuery({ queryKey: ['dashboard-summary'], queryFn: reportsService.dashboardSummary })
   const { data: salesList } = useQuery({ queryKey: ['sales-list'], queryFn: () => salesService.getAll({ page: 1, pageSize: 5 }) })
   const { data: clients } = useQuery({ queryKey: ['clients-count'], queryFn: () => clientsService.getAll({ page: 1, pageSize: 1 }) })
   const { data: products } = useQuery({ queryKey: ['products-count'], queryFn: () => productsService.getAll({ page: 1, pageSize: 1 }) })
 
   const belowMin = stockReport?.items?.filter((i: any) => i.belowMinimum) ?? []
+  const fmt = (n: any) => `$ ${(+(n ?? 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
   return (
     <div className="space-y-6">
@@ -28,9 +32,25 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-500 dark:text-gray-400">Resumen de los últimos 30 días</p>
       </div>
 
-      {/* KPI cards */}
+      {/* Financial KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard title="Ventas del período" value={`$ ${(salesReport?.totalAmount ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`} icon={<DollarSign className="w-6 h-6" />} color="green" />
+        <button type="button" onClick={() => navigate('/receivables')} className="text-left">
+          <StatCard title="Por cobrar" value={fmt(summary?.totalReceivables)} icon={<CreditCard className="w-6 h-6" />} color="yellow" />
+        </button>
+        <button type="button" onClick={() => navigate('/receivables')} className="text-left">
+          <StatCard title="Vencido" value={fmt(summary?.overdueReceivableAmount)} icon={<AlertTriangle className="w-6 h-6" />} color="red" />
+        </button>
+        <button type="button" onClick={() => navigate('/payables')} className="text-left">
+          <StatCard title="Por pagar" value={fmt(summary?.totalPayables)} icon={<TrendingDown className="w-6 h-6" />} color="purple" />
+        </button>
+        <button type="button" onClick={() => navigate('/cash')} className="text-left">
+          <StatCard title={summary?.openCashSessionId ? 'Saldo de caja' : 'Caja cerrada'} value={summary?.openCashSessionId ? fmt(summary?.currentCashBalance) : '—'} icon={<Wallet className="w-6 h-6" />} color="green" />
+        </button>
+      </div>
+
+      {/* Activity KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard title="Ventas del período" value={fmt(salesReport?.totalAmount)} icon={<DollarSign className="w-6 h-6" />} color="green" />
         <StatCard title="Facturas emitidas" value={salesReport?.totalInvoices ?? 0} icon={<FileText className="w-6 h-6" />} color="blue" />
         <StatCard title="Clientes" value={clients?.totalCount ?? 0} icon={<Users className="w-6 h-6" />} color="purple" />
         <StatCard title="Productos" value={products?.totalCount ?? 0} icon={<Package className="w-6 h-6" />} color="yellow" />

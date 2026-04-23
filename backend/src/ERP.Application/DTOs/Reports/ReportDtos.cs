@@ -76,5 +76,95 @@ public record ReportQueryDto(
     int? ClientId = null,
     int? SupplierId = null,
     int? LocationId = null,
+    int? PaymentMethodId = null,
     string Format = "json"
+);
+
+public record PaymentsReportItemDto(
+    int PaymentId,
+    string Kind,
+    DateTime PaymentDate,
+    string PartyName,
+    string InvoiceFullNumber,
+    string PaymentMethodName,
+    bool AffectsCash,
+    decimal Amount,
+    string? Reference,
+    string CreatedBy
+);
+
+public record PaymentsReportDto(
+    DateTime DateFrom,
+    DateTime DateTo,
+    int Count,
+    decimal TotalReceived,
+    decimal TotalPaid,
+    decimal NetFlow,
+    IEnumerable<PaymentsReportItemDto> Items
+);
+
+public record ReceivableItemDto(
+    int ClientId,
+    string ClientCode,
+    string ClientName,
+    string? Cuit,
+    string? Phone,
+    int OverdueInvoices,
+    decimal OverdueAmount,
+    int PendingInvoices,
+    decimal PendingAmount,
+    decimal TotalDue,
+    DateTime? OldestInvoiceDate
+);
+
+public record ReceivablesReportDto(
+    int ClientCount,
+    decimal TotalDue,
+    decimal TotalOverdue,
+    IEnumerable<ReceivableItemDto> Items
+);
+
+public record PayableItemDto(
+    int SupplierId,
+    string SupplierCode,
+    string SupplierName,
+    string Cuit,
+    int OverdueInvoices,
+    decimal OverdueAmount,
+    int PendingInvoices,
+    decimal PendingAmount,
+    decimal TotalDue,
+    DateTime? OldestInvoiceDate
+);
+
+public record PayablesReportDto(
+    int SupplierCount,
+    decimal TotalDue,
+    decimal TotalOverdue,
+    IEnumerable<PayableItemDto> Items
+);
+
+public record CashReportDayDto(DateTime Date, decimal Income, decimal Expense, decimal Net);
+
+public record CashReportDto(
+    DateTime DateFrom,
+    DateTime DateTo,
+    decimal TotalIncome,
+    decimal TotalExpense,
+    decimal NetFlow,
+    IEnumerable<CashReportDayDto> ByDay,
+    IEnumerable<PaymentMethodSummaryDto> ByPaymentMethod
+);
+
+public record PaymentMethodSummaryDto(string PaymentMethodName, decimal Income, decimal Expense);
+
+public record DashboardSummaryDto(
+    decimal TotalReceivables,
+    decimal TotalPayables,
+    decimal CurrentCashBalance,
+    int OverdueReceivableCount,
+    decimal OverdueReceivableAmount,
+    int OpenCashSessionId,
+    string? OpenCashSessionCode,
+    DateTime? OpenCashSessionOpenedAt
 );

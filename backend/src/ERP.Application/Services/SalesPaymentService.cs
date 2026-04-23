@@ -57,6 +57,26 @@ public class SalesPaymentService : ISalesPaymentService
                 CreatedBy = createdBy,
             };
             _db.SalesPayments.Add(payment);
+            await _db.SaveChangesAsync();
+
+            if (method.AffectsCash)
+            {
+                var openSession = await _db.CashSessions.FirstOrDefaultAsync(s => s.Status == "open")
+                    ?? throw new InvalidOperationException("No hay una sesión de caja abierta. Abrí caja antes de registrar pagos en efectivo.");
+                _db.CashMovements.Add(new CashMovement
+                {
+                    Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+                    CashSessionId = openSession.Id,
+                    MovementDate = dto.PaymentDate,
+                    Type = "income",
+                    Amount = dto.Amount,
+                    PaymentMethodId = dto.PaymentMethodId,
+                    ReferenceType = "SalesPayment",
+                    ReferenceId = payment.Id,
+                    Description = $"Pago factura {invoice.FullNumber}",
+                    CreatedBy = createdBy,
+                });
+            }
 
             invoice.PaidAmount += dto.Amount;
             invoice.BalanceDue = invoice.Total - invoice.PaidAmount;
@@ -104,6 +124,21 @@ public class SalesPaymentService : ISalesPaymentService
             payment.DeletedBy = deletedBy;
             payment.DeletedAt = DateTime.UtcNow;
             _db.SalesPayments.Update(payment);
+
+            var cashMovements = await _db.CashMovements
+                .Where(m => m.ReferenceType == "SalesPayment" && m.ReferenceId == payment.Id && !m.IsDeleted)
+                .ToListAsync();
+            foreach (var m in cashMovements)
+            {
+                var session = await _db.CashSessions.FindAsync(m.CashSessionId);
+                if (session?.Status == "open")
+                {
+                    m.IsDeleted = true;
+                    m.DeletedBy = deletedBy;
+                    m.DeletedAt = DateTime.UtcNow;
+                    _db.CashMovements.Update(m);
+                }
+            }
 
             if (invoice != null)
             {

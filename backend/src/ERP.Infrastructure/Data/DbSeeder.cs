@@ -196,6 +196,59 @@ public static class DbSeeder
             await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesPayments_PaymentMethodId ON SalesPayments(PaymentMethodId)");
         }
 
+        if (!await TableExistsAsync(context, "CashSessions"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE CashSessions (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    OpeningDate TEXT NOT NULL,
+                    OpeningBalance decimal(18,4) NOT NULL DEFAULT 0,
+                    ClosingDate TEXT NULL,
+                    CountedBalance decimal(18,4) NULL,
+                    ExpectedBalance decimal(18,4) NULL,
+                    DifferenceAmount decimal(18,4) NULL,
+                    Status TEXT NOT NULL DEFAULT 'open',
+                    ClosedBy TEXT NULL,
+                    Notes TEXT NULL,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL
+                )");
+        }
+
+        if (!await TableExistsAsync(context, "CashMovements"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE CashMovements (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    CashSessionId INTEGER NOT NULL,
+                    MovementDate TEXT NOT NULL,
+                    Type TEXT NOT NULL DEFAULT 'income',
+                    Amount decimal(18,4) NOT NULL DEFAULT 0,
+                    PaymentMethodId INTEGER NULL,
+                    ReferenceType TEXT NULL,
+                    ReferenceId INTEGER NULL,
+                    Description TEXT NOT NULL DEFAULT '',
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (CashSessionId) REFERENCES CashSessions(Id),
+                    FOREIGN KEY (PaymentMethodId) REFERENCES PaymentMethods(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_CashMovements_CashSessionId ON CashMovements(CashSessionId)");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_CashMovements_PaymentMethodId ON CashMovements(PaymentMethodId)");
+        }
+
         if (!await TableExistsAsync(context, "PurchasePayments"))
         {
             await context.Database.ExecuteSqlRawAsync(@"

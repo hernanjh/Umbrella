@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Truck, Package, FileText, ShoppingCart,
   BarChart2, Settings, ChevronDown, ChevronRight, Warehouse,
-  List, Tag, MapPin, Receipt, ClipboardList, Building2, Shield
+  Building2, Shield, Wallet
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -27,6 +27,14 @@ const NAV = [
       { label: 'Estado de Stock', to: '/stock' },
       { label: 'Ajustes', to: '/stock/adjustments' },
       { label: 'Movimientos', to: '/stock/movements' },
+    ]
+  },
+  {
+    label: 'Finanzas', icon: Wallet, children: [
+      { label: 'Caja', to: '/cash' },
+      { label: 'Histórico de Caja', to: '/cash/sessions' },
+      { label: 'Cuentas por Cobrar', to: '/receivables' },
+      { label: 'Cuentas por Pagar', to: '/payables' },
     ]
   },
   { label: 'Clientes', icon: Users, to: '/clients' },
