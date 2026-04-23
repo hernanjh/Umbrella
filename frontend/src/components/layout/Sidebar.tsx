@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Truck, Package, FileText, ShoppingCart,
   BarChart2, Settings, ChevronDown, ChevronRight, Warehouse,
-  List, Tag, MapPin, Receipt, ClipboardList, Building2
+  List, Tag, MapPin, Receipt, ClipboardList, Building2, Shield
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -33,6 +33,12 @@ const NAV = [
   { label: 'Proveedores', icon: Truck, to: '/suppliers' },
   { label: 'Productos', icon: Package, to: '/products' },
   { label: 'Reportes', icon: BarChart2, to: '/reports' },
+  {
+    label: 'Seguridad', icon: Shield, children: [
+      { label: 'Usuarios', to: '/security/users' },
+      { label: 'Roles', to: '/security/roles' },
+    ]
+  },
   {
     label: 'Parametrización', icon: Settings, children: [
       { label: 'Config. General', to: '/params/system-config' },

@@ -105,6 +105,24 @@ export const paramsService = {
   updateSystemConfig: (data: any) => api.put('/params/system-config', data),
 }
 
+export const usersService = {
+  getAll: (params?: any) => api.get('/users', { params }).then(r => r.data.data),
+  getById: (id: number) => api.get(`/users/${id}`).then(r => r.data.data),
+  create: (data: any) => api.post('/users', data).then(r => r.data.data),
+  update: (id: number, data: any) => api.put(`/users/${id}`, data).then(r => r.data.data),
+  delete: (id: number) => api.delete(`/users/${id}`),
+  restore: (id: number) => api.post(`/users/${id}/restore`),
+  resetPassword: (id: number, newPassword: string) => api.post(`/users/${id}/reset-password`, { newPassword }),
+}
+
+export const rolesService = {
+  getAll: () => api.get('/roles').then(r => r.data.data),
+  getById: (id: number) => api.get(`/roles/${id}`).then(r => r.data.data),
+  create: (data: any) => api.post('/roles', data).then(r => r.data.data),
+  update: (id: number, data: any) => api.put(`/roles/${id}`, data).then(r => r.data.data),
+  delete: (id: number) => api.delete(`/roles/${id}`),
+}
+
 export const reportsService = {
   salesByPeriod: (params: any) => api.get('/reports/sales-by-period', { params }).then(r => r.data.data),
   salesBySeller: (params: any) => api.get('/reports/sales-by-seller', { params }).then(r => r.data.data),
