@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, X, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -23,8 +24,10 @@ export default function SearchAutocomplete({
   const [options, setOptions] = useState<Option[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number; width: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
@@ -34,15 +37,31 @@ export default function SearchAutocomplete({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        if (!value) setQuery('')
-        else setQuery(value.label)
-      }
+      const t = e.target as Node
+      if (containerRef.current?.contains(t)) return
+      if (menuRef.current?.contains(t)) return
+      setOpen(false)
+      if (!value) setQuery('')
+      else setQuery(value.label)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [value])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    const update = () => {
+      const rect = inputRef.current?.getBoundingClientRect()
+      if (rect) setMenuPos({ left: rect.left, top: rect.bottom + 4, width: rect.width })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [open, options.length])
 
   const handleInput = (q: string) => {
     setQuery(q)
@@ -71,6 +90,32 @@ export default function SearchAutocomplete({
     inputRef.current?.focus()
   }
 
+  const menu = open && menuPos && (
+    <div
+      ref={menuRef}
+      style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 1000 }}
+    >
+      {options.length > 0 ? (
+        <ul className="card shadow-xl overflow-auto max-h-60 py-1">
+          {options.map(opt => (
+            <li key={opt.id}
+              onMouseDown={(e) => { e.preventDefault(); select(opt) }}
+              className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">{opt.label}</div>
+              {opt.sublabel && <div className="text-xs text-gray-500 dark:text-gray-400">{opt.sublabel}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !loading && query.length > 0 && (
+          <div className="card shadow-xl py-3 px-3 text-sm text-gray-500 dark:text-gray-400">
+            Sin resultados para "{query}"
+          </div>
+        )
+      )}
+    </div>
+  )
+
   return (
     <div className={clsx('relative', className)} ref={containerRef}>
       {label && <label className="label">{label}{required && <span className="text-red-500 ml-1">*</span>}</label>}
@@ -94,23 +139,7 @@ export default function SearchAutocomplete({
         )}
       </div>
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-      {open && options.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 card shadow-xl overflow-auto max-h-60 py-1">
-          {options.map(opt => (
-            <li key={opt.id}
-              onClick={() => select(opt)}
-              className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">{opt.label}</div>
-              {opt.sublabel && <div className="text-xs text-gray-500 dark:text-gray-400">{opt.sublabel}</div>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {open && options.length === 0 && !loading && query.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 card shadow-xl py-3 px-3 text-sm text-gray-500 dark:text-gray-400">
-          Sin resultados para "{query}"
-        </div>
-      )}
+      {menu && createPortal(menu, document.body)}
     </div>
   )
 }

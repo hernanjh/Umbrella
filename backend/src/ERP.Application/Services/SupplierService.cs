@@ -19,7 +19,10 @@ public class SupplierService : ISupplierService
     {
         var q = _db.Suppliers.Include(s => s.VatCondition).AsQueryable();
         if (!string.IsNullOrWhiteSpace(query.Search))
-            q = q.Where(s => s.BusinessName.Contains(query.Search) || s.Cuit.Contains(query.Search));
+        {
+            var p = $"%{query.Search}%";
+            q = q.Where(s => EF.Functions.Like(s.BusinessName, p) || EF.Functions.Like(s.Cuit, p));
+        }
         if (query.IncludeDeleted) q = q.IgnoreQueryFilters();
         var total = await q.CountAsync();
         var items = await q.OrderBy(s => s.BusinessName)
@@ -42,11 +45,14 @@ public class SupplierService : ISupplierService
     }
 
     public async Task<IEnumerable<SupplierSearchDto>> SearchAsync(string term)
-        => await _db.Suppliers
-            .Where(s => s.BusinessName.Contains(term) || s.Cuit.Contains(term) || s.Code.Contains(term))
+    {
+        var p = $"%{term}%";
+        return await _db.Suppliers
+            .Where(s => EF.Functions.Like(s.BusinessName, p) || EF.Functions.Like(s.Cuit, p) || EF.Functions.Like(s.Code, p))
             .Take(20)
             .Select(s => new SupplierSearchDto(s.Id, s.Code, s.BusinessName, s.Cuit))
             .ToListAsync();
+    }
 
     public async Task<SupplierDetailDto> CreateAsync(CreateSupplierDto dto, string createdBy)
     {

@@ -17,6 +17,8 @@ public static class DbSeeder
         // To switch to migrations later: run `dotnet ef migrations add Initial` and change this to MigrateAsync().
         await context.Database.EnsureCreatedAsync();
 
+        await EnsureSchemaAsync(context);
+
         if (!await context.Roles.AnyAsync())
         {
             context.Roles.AddRange(
@@ -120,6 +122,130 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
+        if (!await context.PaymentMethods.AnyAsync())
+        {
+            context.PaymentMethods.AddRange(
+                new PaymentMethod { Code = "EFE", Name = "Efectivo", Type = "cash", AffectsCash = true, CreatedBy = "system" },
+                new PaymentMethod { Code = "TRF", Name = "Transferencia", Type = "transfer", AffectsCash = false, CreatedBy = "system" },
+                new PaymentMethod { Code = "TDB", Name = "Tarjeta de Débito", Type = "card", AffectsCash = false, CreatedBy = "system" },
+                new PaymentMethod { Code = "TCR", Name = "Tarjeta de Crédito", Type = "card", AffectsCash = false, CreatedBy = "system" },
+                new PaymentMethod { Code = "CHQ", Name = "Cheque", Type = "check", AffectsCash = false, CreatedBy = "system" }
+            );
+            await context.SaveChangesAsync();
+        }
+
         logger.LogInformation("Database seeding completed.");
+    }
+
+    private static async Task EnsureSchemaAsync(AppDbContext context)
+    {
+        if (!await ColumnExistsAsync(context, "SalesInvoiceItems", "StockLocationId"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE SalesInvoiceItems ADD COLUMN StockLocationId INTEGER NOT NULL DEFAULT 0");
+            // Backfill from parent invoice so existing items point to the invoice's location.
+            await context.Database.ExecuteSqlRawAsync(@"
+                UPDATE SalesInvoiceItems
+                SET StockLocationId = (SELECT StockLocationId FROM SalesInvoices WHERE SalesInvoices.Id = SalesInvoiceItems.SalesInvoiceId)
+                WHERE StockLocationId = 0");
+        }
+
+        if (!await TableExistsAsync(context, "PaymentMethods"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE PaymentMethods (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    Name TEXT NOT NULL DEFAULT '',
+                    Type TEXT NOT NULL DEFAULT 'cash',
+                    AffectsCash INTEGER NOT NULL DEFAULT 1,
+                    IsActive INTEGER NOT NULL DEFAULT 1,
+                    Notes TEXT NULL,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL
+                )");
+        }
+
+        if (!await TableExistsAsync(context, "SalesPayments"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE SalesPayments (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    SalesInvoiceId INTEGER NOT NULL,
+                    PaymentMethodId INTEGER NOT NULL,
+                    PaymentDate TEXT NOT NULL,
+                    Amount decimal(18,4) NOT NULL DEFAULT 0,
+                    Reference TEXT NULL,
+                    Notes TEXT NULL,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (SalesInvoiceId) REFERENCES SalesInvoices(Id),
+                    FOREIGN KEY (PaymentMethodId) REFERENCES PaymentMethods(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesPayments_SalesInvoiceId ON SalesPayments(SalesInvoiceId)");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesPayments_PaymentMethodId ON SalesPayments(PaymentMethodId)");
+        }
+
+        if (!await TableExistsAsync(context, "PurchasePayments"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE PurchasePayments (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    PurchaseInvoiceId INTEGER NOT NULL,
+                    PaymentMethodId INTEGER NOT NULL,
+                    PaymentDate TEXT NOT NULL,
+                    Amount decimal(18,4) NOT NULL DEFAULT 0,
+                    Reference TEXT NULL,
+                    Notes TEXT NULL,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (PurchaseInvoiceId) REFERENCES PurchaseInvoices(Id),
+                    FOREIGN KEY (PaymentMethodId) REFERENCES PaymentMethods(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_PurchasePayments_PurchaseInvoiceId ON PurchasePayments(PurchaseInvoiceId)");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_PurchasePayments_PaymentMethodId ON PurchasePayments(PaymentMethodId)");
+        }
+    }
+
+    private static async Task<bool> TableExistsAsync(AppDbContext context, string table)
+    {
+        var conn = context.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=$name";
+        var param = cmd.CreateParameter();
+        param.ParameterName = "$name";
+        param.Value = table;
+        cmd.Parameters.Add(param);
+        var result = await cmd.ExecuteScalarAsync();
+        return result != null;
+    }
+
+    private static async Task<bool> ColumnExistsAsync(AppDbContext context, string table, string column)
+    {
+        var conn = context.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({table})";
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+            if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 }

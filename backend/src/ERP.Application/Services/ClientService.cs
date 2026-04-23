@@ -20,7 +20,10 @@ public class ClientService : IClientService
         var q = _db.Clients.Include(c => c.ClientType).Include(c => c.Zone).Include(c => c.AssignedSeller).AsQueryable();
         if (requestingUserId.HasValue) q = q.Where(c => c.AssignedSellerId == requestingUserId);
         if (!string.IsNullOrWhiteSpace(query.Search))
-            q = q.Where(c => c.BusinessName.Contains(query.Search) || (c.Cuit != null && c.Cuit.Contains(query.Search)) || (c.Email != null && c.Email.Contains(query.Search)));
+        {
+            var p = $"%{query.Search}%";
+            q = q.Where(c => EF.Functions.Like(c.BusinessName, p) || (c.Cuit != null && EF.Functions.Like(c.Cuit, p)) || (c.Email != null && EF.Functions.Like(c.Email, p)));
+        }
         if (query.IncludeDeleted) q = q.IgnoreQueryFilters();
         var total = await q.CountAsync();
         var items = await q.OrderBy(c => c.BusinessName).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
@@ -44,8 +47,21 @@ public class ClientService : IClientService
     }
 
     public async Task<IEnumerable<ClientSearchDto>> SearchAsync(string term)
-        => await _db.Clients.Where(c => c.BusinessName.Contains(term) || (c.Cuit != null && c.Cuit.Contains(term)) || c.Code.Contains(term))
-            .Take(20).Select(c => new ClientSearchDto(c.Id, c.Code, c.BusinessName, c.Cuit, c.City)).ToListAsync();
+    {
+        var p = $"%{term}%";
+        return await _db.Clients
+            .Include(c => c.DefaultPriceList)
+            .Include(c => c.ClientType).ThenInclude(ct => ct!.DefaultPriceList)
+            .Where(c => EF.Functions.Like(c.BusinessName, p) || (c.Cuit != null && EF.Functions.Like(c.Cuit, p)) || EF.Functions.Like(c.Code, p))
+            .Take(20)
+            .Select(c => new ClientSearchDto(
+                c.Id, c.Code, c.BusinessName, c.Cuit, c.City,
+                c.DefaultPriceListId ?? (c.ClientType != null ? c.ClientType.DefaultPriceListId : null),
+                c.DefaultPriceList != null ? c.DefaultPriceList.Name
+                    : (c.ClientType != null && c.ClientType.DefaultPriceList != null ? c.ClientType.DefaultPriceList.Name : null)
+            ))
+            .ToListAsync();
+    }
 
     public async Task<ClientDetailDto> CreateAsync(CreateClientDto dto, string createdBy)
     {

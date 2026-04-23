@@ -54,6 +54,8 @@ public record SalesInvoiceItemDto(
     int ProductId,
     string ProductName,
     string ProductCode,
+    int StockLocationId,
+    string? StockLocationName,
     decimal Quantity,
     decimal UnitPrice,
     decimal DiscountPercentage,
@@ -72,13 +74,14 @@ public record CreateSalesInvoiceDto(
     int? SellerId,
     int? PriceListId,
     int? PaymentConditionId,
-    int StockLocationId,
+    int? StockLocationId,
     string? Notes,
     IEnumerable<CreateSalesInvoiceItemDto> Items
 );
 
 public record CreateSalesInvoiceItemDto(
     int ProductId,
+    int StockLocationId,
     decimal Quantity,
     decimal UnitPrice,
     decimal DiscountPercentage,

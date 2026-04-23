@@ -8,6 +8,9 @@ public class SalesInvoiceItem : BaseEntity
     public int ProductId { get; set; }
     public Product Product { get; set; } = null!;
 
+    public int StockLocationId { get; set; }
+    public StockLocation StockLocation { get; set; } = null!;
+
     public string ProductName { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
     public decimal UnitPrice { get; set; }

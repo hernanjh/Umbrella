@@ -5,12 +5,14 @@ import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
-import { Plus, Edit2, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Edit2, Trash2, RotateCcw, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
+import { useNavigate } from 'react-router-dom'
 
 export default function ClientsPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [modal, setModal] = useState<{ open: boolean; data?: any }>({ open: false })
   const [form, setForm] = useState<any>({})
   const [selectedClientType, setSelectedClientType] = useState<any>(null)
@@ -67,6 +69,7 @@ export default function ClientsPage() {
         <DataGrid columns={columns} data={clients?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="clientes"
           actions={(row) => (
             <>
+              <button className="btn-ghost btn-sm p-1" onClick={() => navigate(`/clients/${row.id}/account`)} title="Cuenta corriente"><Wallet className="w-3.5 h-3.5" /></button>
               <button className="btn-ghost btn-sm p-1" onClick={() => openEdit(row)}><Edit2 className="w-3.5 h-3.5" /></button>
               {!row.isDeleted
                 ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)}><Trash2 className="w-3.5 h-3.5" /></button>

@@ -20,6 +20,10 @@ public static class DependencyInjection
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IPaymentMethodService, PaymentMethodService>();
+        services.AddScoped<ISalesPaymentService, SalesPaymentService>();
+        services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
+        services.AddScoped<IClientAccountService, ClientAccountService>();
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;
     }

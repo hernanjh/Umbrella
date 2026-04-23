@@ -18,7 +18,7 @@ public class PriceListService : IPriceListService
     public async Task<PagedResultDto<PriceListListDto>> GetAllAsync(QueryParamsDto query)
     {
         var q = _db.PriceLists.Include(pl => pl.Items).AsQueryable();
-        if (!string.IsNullOrWhiteSpace(query.Search)) q = q.Where(pl => pl.Name.Contains(query.Search));
+        if (!string.IsNullOrWhiteSpace(query.Search)) { var p = $"%{query.Search}%"; q = q.Where(pl => EF.Functions.Like(pl.Name, p)); }
         var total = await q.CountAsync();
         var items = await q.OrderBy(pl => pl.Name).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(pl => new PriceListListDto(pl.Id, pl.Code, pl.Name, pl.Description, pl.Currency, pl.IsActive, pl.Items.Count, pl.CreatedAt))

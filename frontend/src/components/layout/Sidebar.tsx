@@ -46,6 +46,7 @@ const NAV = [
       { label: 'Zonas', to: '/params/zones' },
       { label: 'Cond. de IVA', to: '/params/vat-conditions' },
       { label: 'Cond. de Pago', to: '/params/payment-conditions' },
+      { label: 'Formas de Pago', to: '/params/payment-methods' },
       { label: 'Categorías', to: '/params/categories' },
       { label: 'Locaciones de Stock', to: '/params/stock-locations' },
     ]

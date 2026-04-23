@@ -19,14 +19,16 @@ public class ProductService : IProductService
     {
         var q = _db.Products.Include(p => p.Category).Include(p => p.StockEntries).AsQueryable();
         if (!string.IsNullOrWhiteSpace(query.Search))
-            q = q.Where(p => p.Name.Contains(query.Search) || p.Code.Contains(query.Search) || (p.Barcode != null && p.Barcode.Contains(query.Search)));
+        {
+            var pat = $"%{query.Search}%";
+            q = q.Where(p => EF.Functions.Like(p.Name, pat) || EF.Functions.Like(p.Code, pat) || (p.Barcode != null && EF.Functions.Like(p.Barcode, pat)));
+        }
         if (query.IncludeDeleted) q = q.IgnoreQueryFilters();
         var total = await q.CountAsync();
-        var items = await q.OrderBy(p => p.Name).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .Select(p => new ProductListDto(p.Id, p.Code, p.Name, p.Barcode, p.Category != null ? p.Category.Name : null,
+        var products = await q.OrderBy(p => p.Name).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
+        var items = products.Select(p => new ProductListDto(p.Id, p.Code, p.Name, p.Barcode, p.Category != null ? p.Category.Name : null,
                 p.Unit, p.IsActive, p.TrackStock, p.LastPurchasePrice, p.AveragePurchasePrice,
-                p.StockEntries.Sum(s => s.Quantity), p.CreatedAt))
-            .ToListAsync();
+                p.StockEntries.Sum(s => s.Quantity), p.CreatedAt)).ToList();
         return new PagedResultDto<ProductListDto>(items, total, query.Page, query.PageSize, (int)Math.Ceiling(total / (double)query.PageSize));
     }
 
@@ -40,12 +42,16 @@ public class ProductService : IProductService
 
     public async Task<IEnumerable<ProductSearchDto>> SearchAsync(string term)
     {
+        var pat = $"%{term}%";
         var results = await _db.Products
-            .Include(p => p.StockEntries)
-            .Where(p => p.Name.Contains(term) || p.Code.Contains(term) || (p.Barcode != null && p.Barcode.Contains(term)))
+            .Include(p => p.StockEntries).ThenInclude(s => s.StockLocation)
+            .Where(p => EF.Functions.Like(p.Name, pat) || EF.Functions.Like(p.Code, pat) || (p.Barcode != null && EF.Functions.Like(p.Barcode, pat)))
             .Take(20)
             .ToListAsync();
-        return results.Select(p => new ProductSearchDto(p.Id, p.Code, p.Name, p.Barcode, p.LastPurchasePrice, p.StockEntries.Sum(s => s.Quantity)));
+        return results.Select(p => new ProductSearchDto(
+            p.Id, p.Code, p.Name, p.Barcode, p.LastPurchasePrice,
+            p.StockEntries.Sum(s => s.Quantity),
+            p.StockEntries.Select(s => new ProductStockByLocationDto(s.StockLocationId, s.StockLocation.Name, s.Quantity))));
     }
 
     public async Task<ProductDetailDto> CreateAsync(CreateProductDto dto, string createdBy)

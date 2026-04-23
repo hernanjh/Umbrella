@@ -32,6 +32,7 @@ export default function PurchaseInvoicesPage() {
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="facturas-compra"
           actions={row => (
             <>
+              <button className="btn-ghost btn-sm p-1" title="Ver" onClick={() => navigate(`/purchases/${row.id}`)}><Eye className="w-3.5 h-3.5" /></button>
               {row.status === 'draft' && <>
                 <button className="btn-ghost btn-sm p-1 text-green-600" title="Confirmar" onClick={() => confirmMutation.mutate(row.id)}><CheckCircle className="w-3.5 h-3.5" /></button>
                 <button className="btn-ghost btn-sm p-1 text-red-500" title="Cancelar" onClick={() => cancelMutation.mutate(row.id)}><XCircle className="w-3.5 h-3.5" /></button>

@@ -23,7 +23,10 @@ public class PurchaseInvoiceService : IPurchaseInvoiceService
     {
         var q = _db.PurchaseInvoices.Include(i => i.Supplier).AsQueryable();
         if (!string.IsNullOrWhiteSpace(query.Search))
-            q = q.Where(i => i.FullNumber.Contains(query.Search) || i.Supplier.BusinessName.Contains(query.Search));
+        {
+            var p = $"%{query.Search}%";
+            q = q.Where(i => EF.Functions.Like(i.FullNumber, p) || EF.Functions.Like(i.Supplier.BusinessName, p));
+        }
 
         var total = await q.CountAsync();
         q = q.OrderByDescending(i => i.InvoiceDate);

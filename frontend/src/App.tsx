@@ -28,6 +28,8 @@ import ReportsPage from './pages/ReportsPage'
 import ProfilePage from './pages/ProfilePage'
 import UsersPage from './pages/security/UsersPage'
 import RolesPage from './pages/security/RolesPage'
+import PaymentMethodsPage from './pages/params/PaymentMethodsPage'
+import ClientAccountPage from './pages/ClientAccountPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -48,6 +50,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="clients" element={<ClientsPage />} />
+        <Route path="clients/:id/account" element={<ClientAccountPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="price-lists" element={<PriceListsPage />} />
@@ -68,6 +71,7 @@ export default function App() {
         <Route path="params/zones" element={<ZonesPage />} />
         <Route path="params/vat-conditions" element={<VatConditionsPage />} />
         <Route path="params/payment-conditions" element={<PaymentConditionsPage />} />
+        <Route path="params/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="params/stock-locations" element={<StockLocationsPage />} />
         <Route path="params/system-config" element={<SystemConfigPage />} />
         <Route path="security/users" element={<UsersPage />} />

@@ -34,6 +34,9 @@ public class AppDbContext : DbContext
     public DbSet<SalesInvoiceItem> SalesInvoiceItems => Set<SalesInvoiceItem>();
     public DbSet<PurchaseInvoice> PurchaseInvoices => Set<PurchaseInvoice>();
     public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems => Set<PurchaseInvoiceItem>();
+    public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
+    public DbSet<SalesPayment> SalesPayments => Set<SalesPayment>();
+    public DbSet<PurchasePayment> PurchasePayments => Set<PurchasePayment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -80,5 +83,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Zone>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<VatCondition>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PaymentCondition>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<SalesPayment>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<PurchasePayment>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

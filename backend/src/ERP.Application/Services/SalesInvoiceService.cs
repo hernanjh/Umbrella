@@ -30,8 +30,10 @@ public class SalesInvoiceService : ISalesInvoiceService
 
         if (sellerId.HasValue) q = q.Where(i => i.SellerId == sellerId);
         if (!string.IsNullOrWhiteSpace(query.Search))
-            q = q.Where(i => i.FullNumber.Contains(query.Search) ||
-                             i.Client.BusinessName.Contains(query.Search));
+        {
+            var p = $"%{query.Search}%";
+            q = q.Where(i => EF.Functions.Like(i.FullNumber, p) || EF.Functions.Like(i.Client.BusinessName, p));
+        }
 
         var total = await q.CountAsync();
         q = query.SortBy switch
@@ -62,6 +64,7 @@ public class SalesInvoiceService : ISalesInvoiceService
             .Include(i => i.PaymentCondition)
             .Include(i => i.StockLocation)
             .Include(i => i.Items).ThenInclude(item => item.Product)
+            .Include(i => i.Items).ThenInclude(item => item.StockLocation)
             .FirstOrDefaultAsync(i => i.Id == id)
             ?? throw new KeyNotFoundException($"Factura {id} no encontrada.");
 
@@ -76,6 +79,10 @@ public class SalesInvoiceService : ISalesInvoiceService
             var cfg = (await _config.GetAllAsync()).FirstOrDefault();
             var number = (cfg?.InvoiceCorrelative ?? 1);
 
+            var firstItemLocation = dto.Items.Select(i => i.StockLocationId).FirstOrDefault();
+            var invoiceLocation = dto.StockLocationId ?? (firstItemLocation > 0 ? firstItemLocation : 0);
+            if (invoiceLocation == 0) throw new InvalidOperationException("Debe indicar locación de stock en al menos un item.");
+
             var invoice = new SalesInvoice
             {
                 Code = $"FC{number:D8}",
@@ -87,7 +94,7 @@ public class SalesInvoiceService : ISalesInvoiceService
                 SellerId = dto.SellerId,
                 PriceListId = dto.PriceListId,
                 PaymentConditionId = dto.PaymentConditionId,
-                StockLocationId = dto.StockLocationId,
+                StockLocationId = invoiceLocation,
                 Notes = dto.Notes,
                 Status = "draft",
                 CreatedBy = createdBy,
@@ -111,6 +118,7 @@ public class SalesInvoiceService : ISalesInvoiceService
                 var item = new SalesInvoiceItem
                 {
                     ProductId = itemDto.ProductId,
+                    StockLocationId = itemDto.StockLocationId > 0 ? itemDto.StockLocationId : invoiceLocation,
                     ProductName = product.Name,
                     Quantity = itemDto.Quantity,
                     UnitPrice = itemDto.UnitPrice,
@@ -172,8 +180,9 @@ public class SalesInvoiceService : ISalesInvoiceService
 
             foreach (var item in inv.Items)
             {
+                var locationId = item.StockLocationId > 0 ? item.StockLocationId : inv.StockLocationId;
                 var stock = await _db.StockEntries
-                    .FirstOrDefaultAsync(s => s.ProductId == item.ProductId && s.StockLocationId == inv.StockLocationId);
+                    .FirstOrDefaultAsync(s => s.ProductId == item.ProductId && s.StockLocationId == locationId);
 
                 var currentQty = stock?.Quantity ?? 0;
                 if (!allowNegative && currentQty < item.Quantity)
@@ -185,7 +194,7 @@ public class SalesInvoiceService : ISalesInvoiceService
                     stock = new StockEntry
                     {
                         ProductId = item.ProductId,
-                        StockLocationId = inv.StockLocationId,
+                        StockLocationId = locationId,
                         Quantity = 0,
                         Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
                         CreatedBy = confirmedBy
@@ -201,7 +210,7 @@ public class SalesInvoiceService : ISalesInvoiceService
                 _db.StockMovements.Add(new StockMovement
                 {
                     ProductId = item.ProductId,
-                    StockLocationId = inv.StockLocationId,
+                    StockLocationId = locationId,
                     Quantity = -item.Quantity,
                     MovementType = "Sale",
                     ReferenceType = "SalesInvoice",
@@ -244,13 +253,17 @@ public class SalesInvoiceService : ISalesInvoiceService
             ?? throw new KeyNotFoundException();
         if (inv.Status != "draft") throw new InvalidOperationException("Solo se puede editar facturas en borrador.");
 
+        var firstItemLocation = dto.Items.Select(i => i.StockLocationId).FirstOrDefault();
+        var invoiceLocation = dto.StockLocationId ?? (firstItemLocation > 0 ? firstItemLocation : 0);
+        if (invoiceLocation == 0) throw new InvalidOperationException("Debe indicar locación de stock en al menos un item.");
+
         _db.SalesInvoiceItems.RemoveRange(inv.Items);
         inv.Items.Clear();
         inv.ClientId = dto.ClientId;
         inv.SellerId = dto.SellerId;
         inv.PriceListId = dto.PriceListId;
         inv.PaymentConditionId = dto.PaymentConditionId;
-        inv.StockLocationId = dto.StockLocationId;
+        inv.StockLocationId = invoiceLocation;
         inv.Notes = dto.Notes;
         inv.ModifiedBy = modifiedBy;
         inv.ModifiedAt = DateTime.UtcNow;
@@ -265,6 +278,7 @@ public class SalesInvoiceService : ISalesInvoiceService
             inv.Items.Add(new SalesInvoiceItem
             {
                 ProductId = itemDto.ProductId,
+                StockLocationId = itemDto.StockLocationId > 0 ? itemDto.StockLocationId : invoiceLocation,
                 ProductName = product!.Name,
                 Quantity = itemDto.Quantity,
                 UnitPrice = itemDto.UnitPrice,
@@ -306,6 +320,7 @@ public class SalesInvoiceService : ISalesInvoiceService
         i.CreatedAt, i.CreatedBy,
         i.Items.Select(item => new SalesInvoiceItemDto(
             item.Id, item.ProductId, item.ProductName, item.Product.Code,
+            item.StockLocationId, item.StockLocation != null ? item.StockLocation.Name : null,
             item.Quantity, item.UnitPrice, item.DiscountPercentage, item.DiscountAmount,
             item.VatRate, item.VatAmount, item.Subtotal, item.Total, item.SortOrder)));
 }

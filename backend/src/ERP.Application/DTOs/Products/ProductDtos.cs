@@ -66,4 +66,4 @@ public record UpdateProductDto(
     int? CategoryId
 );
 
-public record ProductSearchDto(int Id, string Code, string Name, string? Barcode, decimal LastPurchasePrice, decimal TotalStock);
+public record ProductSearchDto(int Id, string Code, string Name, string? Barcode, decimal LastPurchasePrice, decimal TotalStock, IEnumerable<ProductStockByLocationDto> StockByLocation);

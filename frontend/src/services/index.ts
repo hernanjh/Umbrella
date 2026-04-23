@@ -123,6 +123,29 @@ export const rolesService = {
   delete: (id: number) => api.delete(`/roles/${id}`),
 }
 
+export const paymentMethodsService = {
+  getAll: (includeInactive = false) => api.get('/payment-methods', { params: { includeInactive } }).then(r => r.data.data),
+  create: (data: any) => api.post('/payment-methods', data).then(r => r.data.data),
+  update: (id: number, data: any) => api.put(`/payment-methods/${id}`, data).then(r => r.data.data),
+  delete: (id: number) => api.delete(`/payment-methods/${id}`),
+}
+
+export const salesPaymentsService = {
+  getByInvoice: (invoiceId: number) => api.get(`/sales-invoices/${invoiceId}/payments`).then(r => r.data.data),
+  create: (invoiceId: number, data: any) => api.post(`/sales-invoices/${invoiceId}/payments`, data).then(r => r.data.data),
+  delete: (invoiceId: number, paymentId: number) => api.delete(`/sales-invoices/${invoiceId}/payments/${paymentId}`),
+}
+
+export const purchasePaymentsService = {
+  getByInvoice: (invoiceId: number) => api.get(`/purchase-invoices/${invoiceId}/payments`).then(r => r.data.data),
+  create: (invoiceId: number, data: any) => api.post(`/purchase-invoices/${invoiceId}/payments`, data).then(r => r.data.data),
+  delete: (invoiceId: number, paymentId: number) => api.delete(`/purchase-invoices/${invoiceId}/payments/${paymentId}`),
+}
+
+export const clientAccountService = {
+  get: (clientId: number) => api.get(`/clients/${clientId}/account`).then(r => r.data.data),
+}
+
 export const reportsService = {
   salesByPeriod: (params: any) => api.get('/reports/sales-by-period', { params }).then(r => r.data.data),
   salesBySeller: (params: any) => api.get('/reports/sales-by-seller', { params }).then(r => r.data.data),

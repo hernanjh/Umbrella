@@ -113,4 +113,4 @@ public record UpdateClientDto(
     int? AssignedSellerId
 );
 
-public record ClientSearchDto(int Id, string Code, string BusinessName, string? Cuit, string? City);
+public record ClientSearchDto(int Id, string Code, string BusinessName, string? Cuit, string? City, int? DefaultPriceListId, string? DefaultPriceListName);
