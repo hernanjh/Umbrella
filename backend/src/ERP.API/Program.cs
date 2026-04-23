@@ -40,10 +40,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Umbrella ERP API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Umbrella ERP API",
+        Version = "v1",
+        Description = "Sistema de Gestión de Compra y Venta"
+    });
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Bearer token",
+        Description = "JWT Bearer. Ejemplo: \"Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -52,7 +57,10 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } },
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
             Array.Empty<string>()
         }
     });
@@ -63,11 +71,15 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Swagger siempre activo (quitar en producción real si se prefiere)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Umbrella ERP API v1"));
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Umbrella ERP API v1");
+    c.RoutePrefix = "swagger";
+    c.DocumentTitle = "Umbrella ERP - API Docs";
+    c.DefaultModelsExpandDepth(-1); // oculta schemas por defecto, más limpio
+});
 
 app.UseMiddleware<ERP.API.Middleware.ExceptionMiddleware>();
 app.UseCors();
