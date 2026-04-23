@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [show, setShow] = useState(false)
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuthStore()
-  const { theme } = useThemeStore()
+  const { setTheme } = useThemeStore()
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,6 +21,9 @@ export default function LoginPage() {
     try {
       const data = await authService.login(email, password)
       setAuth(data.accessToken, data.refreshToken, data.user)
+      if (data.user?.theme === 'light' || data.user?.theme === 'dark') {
+        setTheme(data.user.theme)
+      }
       navigate('/dashboard')
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Credenciales incorrectas')

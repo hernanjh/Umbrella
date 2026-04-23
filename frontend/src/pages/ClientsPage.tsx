@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { clientsService, paramsService, priceListsService, usersService } from '../services'
+import { clientsService, paramsService, priceListsService, usersService, clientDocsService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
+import DocumentsSection from '../components/uploads/DocumentsSection'
 import { Plus, Edit2, Trash2, RotateCcw, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
@@ -22,26 +23,48 @@ export default function ClientsPage() {
   const [selectedPayCond, setSelectedPayCond] = useState<any>(null)
 
   useEffect(() => {
-    if (modal.open) {
-      const d = modal.data
-      setSelectedClientType(d?.clientTypeId ? { id: d.clientTypeId, label: d.clientTypeName ?? '' } : null)
-      setSelectedZone(d?.zoneId ? { id: d.zoneId, label: d.zoneName ?? '' } : null)
-      setSelectedSeller(d?.assignedSellerId ? { id: d.assignedSellerId, label: d.assignedSellerName ?? '' } : null)
-      setSelectedVat(d?.vatConditionId ? { id: d.vatConditionId, label: d.vatConditionName ?? '' } : null)
-      setSelectedPayCond(d?.paymentConditionId ? { id: d.paymentConditionId, label: d.paymentConditionName ?? '' } : null)
+    if (!modal.open) return
+    if (!modal.data?.id) {
+      setSelectedClientType(null); setSelectedZone(null); setSelectedSeller(null)
+      setSelectedVat(null); setSelectedPayCond(null); setSelectedPriceList(null)
+      setForm({})
+      return
     }
-  }, [modal.open, modal.data])
+    clientsService.getById(modal.data.id).then((full: any) => {
+      setForm(full)
+      setSelectedClientType(full.clientTypeId ? { id: full.clientTypeId, label: full.clientTypeName ?? '' } : null)
+      setSelectedZone(full.zoneId ? { id: full.zoneId, label: full.zoneName ?? '' } : null)
+      setSelectedSeller(full.assignedSellerId ? { id: full.assignedSellerId, label: full.assignedSellerName ?? '' } : null)
+      setSelectedVat(full.vatConditionId ? { id: full.vatConditionId, label: full.vatConditionName ?? '' } : null)
+      setSelectedPayCond(full.paymentConditionId ? { id: full.paymentConditionId, label: full.paymentConditionName ?? '' } : null)
+      setSelectedPriceList(full.defaultPriceListId ? { id: full.defaultPriceListId, label: full.defaultPriceListName ?? '' } : null)
+    })
+  }, [modal.open, modal.data?.id])
+
+  // Cascade: client type → default price list
+  useEffect(() => {
+    if (!selectedClientType) return
+    const ct = (clientTypes ?? []).find((c: any) => c.id === selectedClientType.id)
+    if (ct?.defaultPriceListId && !selectedPriceList) {
+      setSelectedPriceList({ id: ct.defaultPriceListId, label: ct.defaultPriceListName ?? 'Lista' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientType?.id])
+
+  // Cascade: zone → default seller
+  useEffect(() => {
+    if (!selectedZone) return
+    const z = (zones ?? []).find((zz: any) => zz.id === selectedZone.id)
+    if (z?.defaultSellerId && !selectedSeller) {
+      setSelectedSeller({ id: z.defaultSellerId, label: z.defaultSellerName ?? 'Vendedor' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedZone?.id])
 
   const [selectedPriceList, setSelectedPriceList] = useState<any>(null)
 
-  useEffect(() => {
-    if (modal.open) {
-      const d = modal.data
-      setSelectedPriceList(d?.defaultPriceListId ? { id: d.defaultPriceListId, label: d.defaultPriceListName ?? '' } : null)
-    }
-  }, [modal.open, modal.data])
-
-  const { data: clients, isLoading, refetch } = useQuery({ queryKey: ['clients'], queryFn: () => clientsService.getAll({ page: 1, pageSize: 200 }) })
+  const [showDeleted, setShowDeleted] = useState(false)
+  const { data: clients, isLoading, refetch } = useQuery({ queryKey: ['clients', showDeleted], queryFn: () => clientsService.getAll({ page: 1, pageSize: 200, includeDeleted: showDeleted }) })
   const { data: clientTypes } = useQuery({ queryKey: ['client-types'], queryFn: paramsService.getClientTypes })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: paramsService.getZones })
   const { data: vatConditions } = useQuery({ queryKey: ['vat-conditions'], queryFn: paramsService.getVatConditions })
@@ -65,8 +88,8 @@ export default function ClientsPage() {
     onSuccess: () => { toast.success('Cliente restaurado'); qc.invalidateQueries({ queryKey: ['clients'] }) }
   })
 
-  const openNew = () => { setForm({}); setSelectedClientType(null); setSelectedZone(null); setSelectedSeller(null); setModal({ open: true }) }
-  const openEdit = (row: any) => { setForm(row); setModal({ open: true, data: row }) }
+  const openNew = () => { setModal({ open: true }) }
+  const openEdit = (row: any) => { setModal({ open: true, data: row }) }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,13 +121,20 @@ export default function ClientsPage() {
         actions={<button className="btn-primary" onClick={openNew}><Plus className="w-4 h-4" /> Nuevo Cliente</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={clients?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="clientes"
-          actions={(row) => (
+          rowClassName={(r: any) => r.isDeleted ? 'opacity-60' : ''}
+          toolbar={
+            <label className="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 select-none ml-2">
+              <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} />
+              Ver eliminados
+            </label>
+          }
+          actions={(row: any) => (
             <>
-              <button className="btn-ghost btn-sm p-1" onClick={() => navigate(`/clients/${row.id}/account`)} title="Cuenta corriente"><Wallet className="w-3.5 h-3.5" /></button>
-              <button className="btn-ghost btn-sm p-1" onClick={() => openEdit(row)}><Edit2 className="w-3.5 h-3.5" /></button>
+              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => navigate(`/clients/${row.id}/account`)} title="Cuenta corriente"><Wallet className="w-3.5 h-3.5" /></button>}
+              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => openEdit(row)} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
               {!row.isDeleted
-                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)}><Trash2 className="w-3.5 h-3.5" /></button>
-                : <button className="btn-ghost btn-sm p-1 text-green-500" onClick={() => restoreMutation.mutate(row.id)}><RotateCcw className="w-3.5 h-3.5" /></button>
+                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>
               }
             </>
           )}
@@ -141,6 +171,15 @@ export default function ClientsPage() {
             onSearch={async (t) => (priceLists?.items ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
           <div className="form-group col-span-2"><label className="label">Notas</label><textarea className="input" rows={2} value={form.notes ?? ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} /></div>
         </form>
+
+        {modal.data?.id && (
+          <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <DocumentsSection kind="client" entityId={modal.data.id}
+              getDocuments={clientDocsService.getDocuments}
+              uploadDocument={clientDocsService.uploadDocument}
+              deleteDocument={clientDocsService.deleteDocument} />
+          </div>
+        )}
       </Modal>
     </div>
   )

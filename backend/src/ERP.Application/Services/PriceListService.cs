@@ -35,11 +35,26 @@ public class PriceListService : IPriceListService
 
     public async Task<PriceListDetailDto> CreateAsync(CreatePriceListDto dto, string createdBy)
     {
-        var pl = new PriceList { Code = dto.Code, Name = dto.Name, Description = dto.Description, Currency = dto.Currency, CreatedBy = createdBy };
+        var pl = new PriceList
+        {
+            Code = dto.Code, Name = dto.Name, Description = dto.Description, Currency = dto.Currency,
+            DefaultProfitPercentage = dto.DefaultProfitPercentage,
+            CreatedBy = createdBy
+        };
         _db.PriceLists.Add(pl);
         var products = await _db.Products.Where(p => p.IsActive).ToListAsync();
+        var configured = dto.DefaultProfitPercentage > 0;
         foreach (var prod in products)
-            pl.Items.Add(new PriceListItem { ProductId = prod.Id, PricingMode = "percentage", ProfitPercentage = 0, FinalPrice = prod.LastPurchasePrice, Code = Guid.NewGuid().ToString("N")[..8].ToUpper(), CreatedBy = createdBy });
+            pl.Items.Add(new PriceListItem
+            {
+                ProductId = prod.Id,
+                PricingMode = "percentage",
+                ProfitPercentage = dto.DefaultProfitPercentage,
+                FinalPrice = configured ? prod.AveragePurchasePrice * (1 + dto.DefaultProfitPercentage / 100) : 0,
+                HasPriceConfigured = configured,
+                Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+                CreatedBy = createdBy
+            });
         await _uow.SaveChangesAsync();
         return await GetByIdAsync(pl.Id);
     }
@@ -48,6 +63,7 @@ public class PriceListService : IPriceListService
     {
         var pl = await _db.PriceLists.FindAsync(id) ?? throw new KeyNotFoundException();
         pl.Name = dto.Name; pl.Description = dto.Description; pl.Currency = dto.Currency; pl.IsActive = dto.IsActive;
+        pl.DefaultProfitPercentage = dto.DefaultProfitPercentage;
         pl.ModifiedBy = modifiedBy; pl.ModifiedAt = DateTime.UtcNow;
         _db.PriceLists.Update(pl); await _uow.SaveChangesAsync();
         return await GetByIdAsync(id);
@@ -69,12 +85,13 @@ public class PriceListService : IPriceListService
             : dto.FixedPrice;
         if (item == null)
         {
-            _db.PriceListItems.Add(new PriceListItem { PriceListId = priceListId, ProductId = dto.ProductId, PricingMode = dto.PricingMode, ProfitPercentage = dto.ProfitPercentage, FixedPrice = dto.FixedPrice, FinalPrice = finalPrice, Code = Guid.NewGuid().ToString("N")[..8].ToUpper(), CreatedBy = modifiedBy });
+            _db.PriceListItems.Add(new PriceListItem { PriceListId = priceListId, ProductId = dto.ProductId, PricingMode = dto.PricingMode, ProfitPercentage = dto.ProfitPercentage, FixedPrice = dto.FixedPrice, FinalPrice = finalPrice, HasPriceConfigured = true, Code = Guid.NewGuid().ToString("N")[..8].ToUpper(), CreatedBy = modifiedBy });
         }
         else
         {
             item.PricingMode = dto.PricingMode; item.ProfitPercentage = dto.ProfitPercentage;
             item.FixedPrice = dto.FixedPrice; item.FinalPrice = finalPrice;
+            item.HasPriceConfigured = true;
             item.ModifiedBy = modifiedBy; item.ModifiedAt = DateTime.UtcNow;
             _db.PriceListItems.Update(item);
         }
@@ -95,21 +112,24 @@ public class PriceListService : IPriceListService
             item.PricingMode = dto.PricingMode;
             item.ProfitPercentage = dto.ProfitPercentage;
             item.FinalPrice = item.Product.AveragePurchasePrice * (1 + dto.ProfitPercentage / 100);
+            item.HasPriceConfigured = true;
             item.ModifiedBy = modifiedBy; item.ModifiedAt = DateTime.UtcNow;
         }
+        var pl = await _db.PriceLists.FindAsync(priceListId);
+        if (pl != null) { pl.DefaultProfitPercentage = dto.ProfitPercentage; _db.PriceLists.Update(pl); }
         await _uow.SaveChangesAsync();
     }
 
     public async Task RecalculatePricesAsync(int priceListId)
     {
-        var items = await _db.PriceListItems.Include(i => i.Product).Where(i => i.PriceListId == priceListId && i.PricingMode == "percentage").ToListAsync();
+        var items = await _db.PriceListItems.Include(i => i.Product).Where(i => i.PriceListId == priceListId && i.PricingMode == "percentage" && i.HasPriceConfigured).ToListAsync();
         foreach (var item in items)
             item.FinalPrice = item.Product.AveragePurchasePrice * (1 + item.ProfitPercentage / 100);
         await _uow.SaveChangesAsync();
     }
 
     private static PriceListDetailDto MapToDetail(PriceList pl) => new(
-        pl.Id, pl.Code, pl.Name, pl.Description, pl.Currency, pl.IsActive, pl.CreatedAt,
+        pl.Id, pl.Code, pl.Name, pl.Description, pl.Currency, pl.IsActive, pl.DefaultProfitPercentage, pl.CreatedAt,
         pl.Items.Select(i => new PriceListItemDto(i.Id, i.ProductId, i.Product.Code, i.Product.Name, i.Product.Unit,
-            i.Product.LastPurchasePrice, i.PricingMode, i.ProfitPercentage, i.FixedPrice, i.FinalPrice)));
+            i.Product.LastPurchasePrice, i.PricingMode, i.ProfitPercentage, i.FixedPrice, i.FinalPrice, i.HasPriceConfigured)));
 }

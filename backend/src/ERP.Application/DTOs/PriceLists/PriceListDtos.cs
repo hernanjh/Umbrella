@@ -18,6 +18,7 @@ public record PriceListDetailDto(
     string? Description,
     string Currency,
     bool IsActive,
+    decimal DefaultProfitPercentage,
     DateTime CreatedAt,
     IEnumerable<PriceListItemDto> Items
 );
@@ -32,21 +33,24 @@ public record PriceListItemDto(
     string PricingMode,
     decimal ProfitPercentage,
     decimal FixedPrice,
-    decimal FinalPrice
+    decimal FinalPrice,
+    bool HasPriceConfigured
 );
 
 public record CreatePriceListDto(
     string Code,
     string Name,
     string? Description,
-    string Currency
+    string Currency,
+    decimal DefaultProfitPercentage
 );
 
 public record UpdatePriceListDto(
     string Name,
     string? Description,
     string Currency,
-    bool IsActive
+    bool IsActive,
+    decimal DefaultProfitPercentage
 );
 
 public record UpsertPriceListItemDto(

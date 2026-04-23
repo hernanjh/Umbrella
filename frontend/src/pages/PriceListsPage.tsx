@@ -35,7 +35,7 @@ export default function PriceListsPage() {
   return (
     <div>
       <PageHeader title="Listas de Precios"
-        actions={<button className="btn-primary" onClick={() => { setForm({ currency: 'ARS' }); setModal({ open: true }) }}><Plus className="w-4 h-4" /> Nueva Lista</button>} />
+        actions={<button className="btn-primary" onClick={() => { setForm({ currency: 'ARS', defaultProfitPercentage: 0 }); setModal({ open: true }) }}><Plus className="w-4 h-4" /> Nueva Lista</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="listas-precios"
           actions={row => (
@@ -52,6 +52,11 @@ export default function PriceListsPage() {
           <div className="form-group"><label className="label">Código</label><input className="input" value={form.code ?? ''} onChange={e => setForm((f: any) => ({ ...f, code: e.target.value }))} disabled={!!modal.data} /></div>
           <div className="form-group"><label className="label">Nombre</label><input className="input" value={form.name ?? ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Moneda</label><select className="input" value={form.currency ?? 'ARS'} onChange={e => setForm((f: any) => ({ ...f, currency: e.target.value }))}><option>ARS</option><option>USD</option></select></div>
+          <div className="form-group">
+            <label className="label">% rentabilidad general</label>
+            <input className="input" type="number" step="0.01" value={form.defaultProfitPercentage ?? 0} onChange={e => setForm((f: any) => ({ ...f, defaultProfitPercentage: +e.target.value }))} />
+            <p className="text-xs text-gray-500 mt-1">Se aplica automáticamente a productos nuevos.</p>
+          </div>
           <div className="form-group"><label className="label">Descripción</label><textarea className="input" rows={2} value={form.description ?? ''} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} /></div>
         </div>
       </Modal>

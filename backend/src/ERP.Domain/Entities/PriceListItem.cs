@@ -12,4 +12,5 @@ public class PriceListItem : BaseEntity
     public decimal ProfitPercentage { get; set; } = 0;
     public decimal FixedPrice { get; set; } = 0;
     public decimal FinalPrice { get; set; } = 0;
+    public bool HasPriceConfigured { get; set; } = false;
 }

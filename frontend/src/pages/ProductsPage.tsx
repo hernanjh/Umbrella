@@ -4,16 +4,26 @@ import { productsService, paramsService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
-import { Plus, Edit2, Trash2, RotateCcw, Package } from 'lucide-react'
+import { Plus, Edit2, Trash2, RotateCcw, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
+import DocumentsSection from '../components/uploads/DocumentsSection'
+import { useRef } from 'react'
 
 export default function ProductsPage() {
   const qc = useQueryClient()
   const [modal, setModal] = useState<{ open: boolean; data?: any }>({ open: false })
   const [form, setForm] = useState<any>({})
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
-  const { data, isLoading, refetch } = useQuery({ queryKey: ['products'], queryFn: () => productsService.getAll({ page: 1, pageSize: 500 }) })
+  const photoMutation = useMutation({
+    mutationFn: ({ id, file }: { id: number, file: File }) => productsService.uploadPhoto(id, file),
+    onSuccess: (data) => { setForm((f: any) => ({ ...f, photoUrl: data.photoUrl })); toast.success('Foto actualizada'); qc.invalidateQueries({ queryKey: ['products'] }) },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Error al subir foto')
+  })
+
+  const [showDeleted, setShowDeleted] = useState(false)
+  const { data, isLoading, refetch } = useQuery({ queryKey: ['products', showDeleted], queryFn: () => productsService.getAll({ page: 1, pageSize: 500, includeDeleted: showDeleted }) })
   const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: paramsService.getCategories })
 
   const saveMutation = useMutation({
@@ -44,12 +54,19 @@ export default function ProductsPage() {
         actions={<button className="btn-primary" onClick={() => { setForm({ unit: 'un', trackStock: true, minimumStock: 0 }); setModal({ open: true }) }}><Plus className="w-4 h-4" /> Nuevo Producto</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="productos"
-          actions={row => (
+          rowClassName={(r: any) => r.isDeleted ? 'opacity-60' : ''}
+          toolbar={
+            <label className="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 select-none ml-2">
+              <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} />
+              Ver eliminados
+            </label>
+          }
+          actions={(row: any) => (
             <>
-              <button className="btn-ghost btn-sm p-1" onClick={() => { setForm(row); setModal({ open: true, data: row }) }}><Edit2 className="w-3.5 h-3.5" /></button>
+              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => { setForm(row); setModal({ open: true, data: row }) }} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
               {!row.isDeleted
-                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)}><Trash2 className="w-3.5 h-3.5" /></button>
-                : <button className="btn-ghost btn-sm p-1 text-green-500" onClick={() => restoreMutation.mutate(row.id)}><RotateCcw className="w-3.5 h-3.5" /></button>}
+                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
             </>
           )} />
       </div>
@@ -80,6 +97,30 @@ export default function ProductsPage() {
             <label htmlFor="trackStock" className="text-sm text-gray-700 dark:text-gray-300">Controlar stock</label>
           </div>
         </form>
+
+        {modal.data?.id && (
+          <>
+            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3">Foto del producto</h4>
+              <div className="flex items-center gap-4">
+                {form.photoUrl
+                  ? <img src={form.photoUrl} alt="" className="w-24 h-24 object-cover rounded border" />
+                  : <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded border flex items-center justify-center text-gray-400 text-xs">Sin foto</div>}
+                <button type="button" className="btn-secondary btn-sm" onClick={() => photoInputRef.current?.click()} disabled={photoMutation.isPending}>
+                  <Upload className="w-4 h-4" /> {form.photoUrl ? 'Cambiar' : 'Subir'} foto
+                </button>
+                <input ref={photoInputRef} type="file" className="hidden" accept="image/*"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) photoMutation.mutate({ id: modal.data.id, file: f }) }} />
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <DocumentsSection kind="product" entityId={modal.data.id}
+                getDocuments={productsService.getDocuments}
+                uploadDocument={productsService.uploadDocument}
+                deleteDocument={productsService.deleteDocument} />
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   )

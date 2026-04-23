@@ -37,6 +37,16 @@ export const productsService = {
   update: (id: number, data: any) => api.put(`/products/${id}`, data).then(r => r.data.data),
   delete: (id: number) => api.delete(`/products/${id}`),
   restore: (id: number) => api.post(`/products/${id}/restore`),
+  uploadPhoto: (id: number, file: File) => { const fd = new FormData(); fd.append('file', file); return api.post(`/products/${id}/photo`, fd).then(r => r.data.data) },
+  getDocuments: (id: number) => api.get(`/products/${id}/documents`).then(r => r.data.data),
+  uploadDocument: (id: number, file: File, description?: string) => { const fd = new FormData(); fd.append('file', file); if (description) fd.append('description', description); return api.post(`/products/${id}/documents`, fd).then(r => r.data.data) },
+  deleteDocument: (id: number, docId: number) => api.delete(`/products/${id}/documents/${docId}`),
+}
+
+export const clientDocsService = {
+  getDocuments: (id: number) => api.get(`/clients/${id}/documents`).then(r => r.data.data),
+  uploadDocument: (id: number, file: File, description?: string) => { const fd = new FormData(); fd.append('file', file); if (description) fd.append('description', description); return api.post(`/clients/${id}/documents`, fd).then(r => r.data.data) },
+  deleteDocument: (id: number, docId: number) => api.delete(`/clients/${id}/documents/${docId}`),
 }
 
 export const priceListsService = {
@@ -70,6 +80,7 @@ export const purchasesService = {
   confirm: (id: number) => api.post(`/purchase-invoices/${id}/confirm`),
   cancel: (id: number) => api.post(`/purchase-invoices/${id}/cancel`),
   delete: (id: number) => api.delete(`/purchase-invoices/${id}`),
+  getPdf: (id: number) => api.get(`/purchase-invoices/${id}/pdf`, { responseType: 'blob' }),
 }
 
 export const stockService = {
@@ -127,6 +138,7 @@ export const rolesService = {
   create: (data: any) => api.post('/roles', data).then(r => r.data.data),
   update: (id: number, data: any) => api.put(`/roles/${id}`, data).then(r => r.data.data),
   delete: (id: number) => api.delete(`/roles/${id}`),
+  getPermissions: () => api.get('/roles/permissions').then(r => r.data.data),
 }
 
 export const paymentMethodsService = {

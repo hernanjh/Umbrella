@@ -18,17 +18,23 @@ export default function SuppliersPage() {
   const [selectedVat, setSelectedVat] = useState<any>(null)
   const [selectedPayCond, setSelectedPayCond] = useState<any>(null)
 
-  const { data, isLoading, refetch } = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersService.getAll({ page: 1, pageSize: 200 }) })
+  const [showDeleted, setShowDeleted] = useState(false)
+  const { data, isLoading, refetch } = useQuery({ queryKey: ['suppliers', showDeleted], queryFn: () => suppliersService.getAll({ page: 1, pageSize: 200, includeDeleted: showDeleted }) })
   const { data: vatConditions } = useQuery({ queryKey: ['vat-conditions'], queryFn: paramsService.getVatConditions })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
 
   useEffect(() => {
-    if (modal.open) {
-      const d = modal.data
-      setSelectedVat(d?.vatConditionId ? { id: d.vatConditionId, label: d.vatConditionName ?? '' } : null)
-      setSelectedPayCond(d?.paymentConditionId ? { id: d.paymentConditionId, label: d.paymentConditionName ?? '' } : null)
+    if (!modal.open) return
+    if (!modal.data?.id) {
+      setForm({}); setSelectedVat(null); setSelectedPayCond(null)
+      return
     }
-  }, [modal.open, modal.data])
+    suppliersService.getById(modal.data.id).then((full: any) => {
+      setForm(full)
+      setSelectedVat(full.vatConditionId ? { id: full.vatConditionId, label: full.vatConditionName ?? '' } : null)
+      setSelectedPayCond(full.paymentConditionId ? { id: full.paymentConditionId, label: full.paymentConditionName ?? '' } : null)
+    })
+  }, [modal.open, modal.data?.id])
 
   const saveMutation = useMutation({
     mutationFn: (d: any) => modal.data?.id ? suppliersService.update(modal.data.id, d) : suppliersService.create(d),
@@ -59,13 +65,20 @@ export default function SuppliersPage() {
         actions={<button className="btn-primary" onClick={() => { setForm({}); setModal({ open: true }) }}><Plus className="w-4 h-4" /> Nuevo Proveedor</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="proveedores"
-          actions={row => (
+          rowClassName={(r: any) => r.isDeleted ? 'opacity-60' : ''}
+          toolbar={
+            <label className="inline-flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 select-none ml-2">
+              <input type="checkbox" checked={showDeleted} onChange={e => setShowDeleted(e.target.checked)} />
+              Ver eliminados
+            </label>
+          }
+          actions={(row: any) => (
             <>
-              <button className="btn-ghost btn-sm p-1" title="Cuenta corriente" onClick={() => navigate(`/suppliers/${row.id}/account`)}><Wallet className="w-3.5 h-3.5" /></button>
-              <button className="btn-ghost btn-sm p-1" onClick={() => { setForm(row); setModal({ open: true, data: row }) }}><Edit2 className="w-3.5 h-3.5" /></button>
+              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" title="Cuenta corriente" onClick={() => navigate(`/suppliers/${row.id}/account`)}><Wallet className="w-3.5 h-3.5" /></button>}
+              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => { setForm(row); setModal({ open: true, data: row }) }} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
               {!row.isDeleted
-                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)}><Trash2 className="w-3.5 h-3.5" /></button>
-                : <button className="btn-ghost btn-sm p-1 text-green-500" onClick={() => restoreMutation.mutate(row.id)}><RotateCcw className="w-3.5 h-3.5" /></button>}
+                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
             </>
           )} />
       </div>

@@ -29,6 +29,49 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
+        if (!await context.Permissions.AnyAsync())
+        {
+            var modules = new (string Key, string Label)[]
+            {
+                ("dashboard", "Dashboard"),
+                ("clients", "Clientes"),
+                ("suppliers", "Proveedores"),
+                ("products", "Productos"),
+                ("pricelists", "Listas de Precios"),
+                ("sales", "Facturas de Venta"),
+                ("purchases", "Facturas de Compra"),
+                ("stock", "Stock"),
+                ("cash", "Caja"),
+                ("receivables", "Cuentas por Cobrar"),
+                ("payables", "Cuentas por Pagar"),
+                ("reports", "Reportes"),
+                ("params", "Parametrización"),
+                ("security", "Seguridad"),
+            };
+            foreach (var (key, label) in modules)
+            {
+                context.Permissions.Add(new Permission
+                {
+                    Code = $"PERM_{key.ToUpper()}",
+                    Module = key,
+                    Action = "access",
+                    Description = label,
+                    CreatedBy = "system",
+                });
+            }
+            await context.SaveChangesAsync();
+
+            // Give admin role full access
+            var admin = await context.Roles.FirstOrDefaultAsync(r => r.Code == "ADM");
+            if (admin != null)
+            {
+                var perms = await context.Permissions.ToListAsync();
+                foreach (var p in perms)
+                    context.RolePermissions.Add(new RolePermission { RoleId = admin.Id, PermissionId = p.Id, CanRead = true, CanWrite = true, CanDelete = true, ViewAll = true });
+                await context.SaveChangesAsync();
+            }
+        }
+
         if (!await context.Users.AnyAsync())
         {
             var adminRole = await context.Roles.FirstAsync(r => r.Code == "ADM");
@@ -212,6 +255,45 @@ public static class DbSeeder
         if (!await ColumnExistsAsync(context, "Zones", "DefaultSellerId"))
         {
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE Zones ADD COLUMN DefaultSellerId INTEGER NULL");
+        }
+
+        if (!await ColumnExistsAsync(context, "PriceLists", "DefaultProfitPercentage"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE PriceLists ADD COLUMN DefaultProfitPercentage decimal(18,4) NOT NULL DEFAULT 0");
+        }
+
+        if (!await TableExistsAsync(context, "ProductDocuments"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE ProductDocuments (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    ProductId INTEGER NOT NULL,
+                    FileName TEXT NOT NULL DEFAULT '',
+                    FileUrl TEXT NOT NULL DEFAULT '',
+                    FileType TEXT NOT NULL DEFAULT '',
+                    FileSizeBytes INTEGER NOT NULL DEFAULT 0,
+                    Description TEXT NULL,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (ProductId) REFERENCES Products(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_ProductDocuments_ProductId ON ProductDocuments(ProductId)");
+        }
+
+        if (!await ColumnExistsAsync(context, "PriceListItems", "HasPriceConfigured"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE PriceListItems ADD COLUMN HasPriceConfigured INTEGER NOT NULL DEFAULT 0");
+            // Existing items with non-zero % or fixed price are considered configured
+            await context.Database.ExecuteSqlRawAsync(@"
+                UPDATE PriceListItems
+                SET HasPriceConfigured = 1
+                WHERE ProfitPercentage <> 0 OR FixedPrice <> 0");
         }
 
         if (!await TableExistsAsync(context, "InvoiceTypes"))

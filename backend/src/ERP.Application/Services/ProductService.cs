@@ -63,7 +63,28 @@ public class ProductService : IProductService
             Unit = dto.Unit, TrackStock = dto.TrackStock, MinimumStock = dto.MinimumStock,
             CategoryId = dto.CategoryId, CreatedBy = createdBy
         };
-        _db.Products.Add(p); await _uow.SaveChangesAsync();
+        _db.Products.Add(p);
+        await _db.SaveChangesAsync();
+
+        // Auto-add to all active price lists. Applies default % if configured in the list.
+        var lists = await _db.PriceLists.Where(pl => pl.IsActive).ToListAsync();
+        foreach (var pl in lists)
+        {
+            var configured = pl.DefaultProfitPercentage > 0;
+            _db.PriceListItems.Add(new PriceListItem
+            {
+                PriceListId = pl.Id,
+                ProductId = p.Id,
+                PricingMode = "percentage",
+                ProfitPercentage = pl.DefaultProfitPercentage,
+                FinalPrice = configured ? p.AveragePurchasePrice * (1 + pl.DefaultProfitPercentage / 100) : 0,
+                HasPriceConfigured = configured,
+                Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+                CreatedBy = createdBy,
+            });
+        }
+
+        await _uow.SaveChangesAsync();
         return await GetByIdAsync(p.Id);
     }
 

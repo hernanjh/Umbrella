@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { purchasesService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
-import { Plus, Eye, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Eye, CheckCircle, XCircle, FileDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/Badge'
@@ -33,6 +33,10 @@ export default function PurchaseInvoicesPage() {
           actions={row => (
             <>
               <button className="btn-ghost btn-sm p-1" title="Ver" onClick={() => navigate(`/purchases/${row.id}`)}><Eye className="w-3.5 h-3.5" /></button>
+              {row.status !== 'draft' && <button className="btn-ghost btn-sm p-1" title="PDF" onClick={async () => {
+                try { const res = await purchasesService.getPdf(row.id); const url = URL.createObjectURL(res.data); const a = document.createElement('a'); a.href = url; a.download = `compra-${row.fullNumber}.pdf`; a.click(); URL.revokeObjectURL(url) }
+                catch { toast.error('Error al descargar PDF') }
+              }}><FileDown className="w-3.5 h-3.5" /></button>}
               {row.status === 'draft' && <>
                 <button className="btn-ghost btn-sm p-1 text-green-600" title="Confirmar" onClick={() => confirmMutation.mutate(row.id)}><CheckCircle className="w-3.5 h-3.5" /></button>
                 <button className="btn-ghost btn-sm p-1 text-red-500" title="Cancelar" onClick={() => cancelMutation.mutate(row.id)}><XCircle className="w-3.5 h-3.5" /></button>

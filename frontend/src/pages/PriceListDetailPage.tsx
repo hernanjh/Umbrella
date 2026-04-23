@@ -130,6 +130,7 @@ function PriceListItemRow({ item, onUpdate, onRemove }: { item: any; onUpdate: (
   const [mode, setMode] = useState<string>(item.pricingMode || 'percentage')
   const [pct, setPct] = useState<string>(String(item.profitPercentage ?? 0))
   const [fixed, setFixed] = useState<string>(String(item.fixedPrice ?? 0))
+  const notConfigured = !item.hasPriceConfigured
 
   const dirty =
     mode !== (item.pricingMode || 'percentage') ||
@@ -146,9 +147,9 @@ function PriceListItemRow({ item, onUpdate, onRemove }: { item: any; onUpdate: (
   }
 
   return (
-    <tr className={dirty ? 'bg-amber-50 dark:bg-amber-900/20' : ''}>
+    <tr className={dirty ? 'bg-amber-50 dark:bg-amber-900/20' : notConfigured ? 'opacity-60' : ''}>
       <td className="font-mono text-xs">{item.productCode}</td>
-      <td>{item.productName}</td>
+      <td>{item.productName}{notConfigured && <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">· sin configurar</span>}</td>
       <td>{item.unit}</td>
       <td>$ {item.lastPurchasePrice?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
       <td>

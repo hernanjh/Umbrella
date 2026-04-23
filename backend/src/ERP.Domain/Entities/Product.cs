@@ -25,4 +25,5 @@ public class Product : BaseEntity
     public ICollection<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = new List<PurchaseInvoiceItem>();
     public ICollection<StockEntry> StockEntries { get; set; } = new List<StockEntry>();
     public ICollection<StockMovement> StockMovements { get; set; } = new List<StockMovement>();
+    public ICollection<ProductDocument> Documents { get; set; } = new List<ProductDocument>();
 }

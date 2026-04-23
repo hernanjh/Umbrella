@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { purchasesService, purchasePaymentsService } from '../../services'
 import { format } from 'date-fns'
 import Badge from '../ui/Badge'
+import { FileDown } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function PurchaseInvoicePreview({ invoiceId }: { invoiceId: number }) {
   const { data: inv, isLoading } = useQuery({
@@ -15,13 +17,25 @@ export default function PurchaseInvoicePreview({ invoiceId }: { invoiceId: numbe
 
   const fmt = (n: any) => `$ ${(+(n ?? 0)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
+  const downloadPdf = async () => {
+    try {
+      const res = await purchasesService.getPdf(invoiceId)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a'); a.href = url; a.download = `compra-${inv?.fullNumber ?? invoiceId}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al descargar PDF') }
+  }
+
   if (isLoading || !inv) return <div className="py-8 text-center text-gray-400">Cargando...</div>
 
   return (
     <div className="space-y-4 text-sm">
-      <div>
-        <h2 className="text-lg font-bold">{inv.fullNumber}</h2>
-        <p className="text-xs text-gray-500">{format(new Date(inv.invoiceDate), 'dd/MM/yyyy')} · <Badge variant={inv.status === 'paid' ? 'green' : inv.status === 'cancelled' ? 'red' : inv.status === 'confirmed' || inv.status === 'partially_paid' ? 'yellow' : 'gray'}>{inv.status}</Badge></p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold">{inv.fullNumber}</h2>
+          <p className="text-xs text-gray-500">{format(new Date(inv.invoiceDate), 'dd/MM/yyyy')} · <Badge variant={inv.status === 'paid' ? 'green' : inv.status === 'cancelled' ? 'red' : inv.status === 'confirmed' || inv.status === 'partially_paid' ? 'yellow' : 'gray'}>{inv.status}</Badge></p>
+        </div>
+        <button className="btn-secondary btn-sm" onClick={downloadPdf}><FileDown className="w-4 h-4" /> PDF</button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

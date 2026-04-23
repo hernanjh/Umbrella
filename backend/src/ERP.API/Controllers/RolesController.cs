@@ -1,7 +1,9 @@
 using ERP.Application.DTOs.Roles;
 using ERP.Application.Interfaces;
+using ERP.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.API.Controllers;
 
@@ -10,7 +12,8 @@ namespace ERP.API.Controllers;
 public class RolesController : BaseController
 {
     private readonly IRoleService _roles;
-    public RolesController(IRoleService roles) { _roles = roles; }
+    private readonly AppDbContext _db;
+    public RolesController(IRoleService roles, AppDbContext db) { _roles = roles; _db = db; }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -18,6 +21,11 @@ public class RolesController : BaseController
         var result = await _roles.GetAllAsync();
         return Ok(new { success = true, data = result });
     }
+
+    [HttpGet("permissions")]
+    public async Task<IActionResult> GetPermissions()
+        => Ok(new { success = true, data = await _db.Permissions.OrderBy(p => p.Description)
+            .Select(p => new { p.Id, p.Module, p.Action, p.Description }).ToListAsync() });
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)

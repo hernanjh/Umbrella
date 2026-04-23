@@ -19,9 +19,11 @@ interface DataGridProps<T> {
   actions?: (row: T) => React.ReactNode
   exportFileName?: string
   emptyMessage?: string
+  toolbar?: React.ReactNode
+  rowClassName?: (row: T) => string | undefined
 }
 
-export default function DataGrid<T extends { id?: number }>({ columns, data, loading, onRefresh, actions, exportFileName = 'export', emptyMessage = 'Sin registros' }: DataGridProps<T>) {
+export default function DataGrid<T extends { id?: number }>({ columns, data, loading, onRefresh, actions, exportFileName = 'export', emptyMessage = 'Sin registros', toolbar, rowClassName }: DataGridProps<T>) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -70,6 +72,7 @@ export default function DataGrid<T extends { id?: number }>({ columns, data, loa
         </div>
         <button onClick={exportExcel} className="btn-secondary btn-sm"><Download className="w-4 h-4" /> Excel</button>
         {onRefresh && <button onClick={onRefresh} className="btn-secondary btn-sm"><RefreshCw className="w-4 h-4" /></button>}
+        {toolbar}
       </div>
       <div className="table-container">
         <table className="table">
@@ -96,7 +99,7 @@ export default function DataGrid<T extends { id?: number }>({ columns, data, loa
               <tr><td colSpan={columns.length + (actions ? 1 : 0)} className="text-center py-12 text-gray-400">{emptyMessage}</td></tr>
             ) : (
               filtered.map((row, i) => (
-                <tr key={(row as any).id ?? i}>
+                <tr key={(row as any).id ?? i} className={rowClassName?.(row) ?? ''}>
                   {columns.map(col => (
                     <td key={String(col.key)}>{col.render ? col.render(row) : String((row as any)[col.key] ?? '')}</td>
                   ))}

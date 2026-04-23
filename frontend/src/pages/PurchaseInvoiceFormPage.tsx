@@ -5,7 +5,7 @@ import { purchasesService, suppliersService, productsService, paramsService, sto
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
 import PageHeader from '../components/ui/PageHeader'
 import PaymentsSection from '../components/payments/PaymentsSection'
-import { Plus, Trash2, Save, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 
@@ -112,6 +112,15 @@ export default function PurchaseInvoiceFormPage() {
 
   const editable = !isEdit || existingInvoice?.status === 'draft'
 
+  const downloadPdf = async () => {
+    try {
+      const res = await purchasesService.getPdf(+id!)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a'); a.href = url; a.download = `compra-${existingInvoice?.fullNumber ?? id}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al descargar PDF') }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -119,6 +128,9 @@ export default function PurchaseInvoiceFormPage() {
         subtitle={isEdit && existingInvoice ? `Estado: ${existingInvoice.status}` : undefined}
         actions={<>
           <button className="btn-secondary" onClick={() => navigate('/purchases')}><ArrowLeft className="w-4 h-4" /> Volver</button>
+          {isEdit && existingInvoice?.status !== 'draft' && (
+            <button className="btn-secondary" onClick={downloadPdf}><FileDown className="w-4 h-4" /> PDF</button>
+          )}
           {isEdit && existingInvoice?.status === 'draft' && (
             <button className="btn-primary" onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
               <CheckCircle className="w-4 h-4" /> Confirmar

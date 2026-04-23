@@ -68,7 +68,9 @@ export default function SalesInvoiceFormPage() {
 
   const priceByProduct = useMemo(() => {
     const m = new Map<number, number>()
-    for (const it of priceListDetail?.items ?? []) m.set(it.productId, it.finalPrice)
+    for (const it of priceListDetail?.items ?? []) {
+      if (it.hasPriceConfigured) m.set(it.productId, it.finalPrice)
+    }
     return m
   }, [priceListDetail])
 
