@@ -1,8 +1,10 @@
 using ERP.Application.DTOs.Common;
 using ERP.Application.DTOs.Users;
 using ERP.Application.Interfaces;
+using ERP.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.API.Controllers;
 
@@ -11,7 +13,23 @@ namespace ERP.API.Controllers;
 public class UsersController : BaseController
 {
     private readonly IUserService _users;
-    public UsersController(IUserService users) { _users = users; }
+    private readonly AppDbContext _db;
+    public UsersController(IUserService users, AppDbContext db) { _users = users; _db = db; }
+
+    [HttpGet("sellers")]
+    public async Task<IActionResult> GetSellers([FromQuery] string? term)
+    {
+        var q = _db.UserRoles.Include(ur => ur.User).Include(ur => ur.Role)
+            .Where(ur => ur.Role.IsSeller && ur.User.IsActive);
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            var p = $"%{term}%";
+            q = q.Where(ur => EF.Functions.Like(ur.User.FirstName, p) || EF.Functions.Like(ur.User.LastName, p) || EF.Functions.Like(ur.User.Email, p));
+        }
+        var data = await q.Select(ur => new { id = ur.User.Id, firstName = ur.User.FirstName, lastName = ur.User.LastName, email = ur.User.Email })
+            .Distinct().Take(50).ToListAsync();
+        return Ok(new { success = true, data });
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] QueryParamsDto query)

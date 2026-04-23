@@ -89,3 +89,15 @@ public class ClientAccountController : BaseController
     public async Task<IActionResult> GetAccount(int clientId)
         => Ok(new { success = true, data = await _service.GetAsync(clientId) });
 }
+
+[Authorize]
+[Route("api/suppliers/{supplierId}/account")]
+public class SupplierAccountController : BaseController
+{
+    private readonly ISupplierAccountService _service;
+    public SupplierAccountController(ISupplierAccountService service) { _service = service; }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAccount(int supplierId)
+        => Ok(new { success = true, data = await _service.GetAsync(supplierId) });
+}

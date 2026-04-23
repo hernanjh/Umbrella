@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
-import { Plus, Eye, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Plus, Eye, CheckCircle, XCircle, FileDown } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/Badge'
@@ -15,8 +15,20 @@ export default function SalesInvoicesPage() {
   const { data, isLoading, refetch } = useQuery({ queryKey: ['sales-invoices'], queryFn: () => salesService.getAll({ page: 1, pageSize: 500 }) })
 
   const confirmMutation = useMutation({ mutationFn: salesService.confirm, onSuccess: () => { toast.success('Factura confirmada'); qc.invalidateQueries({ queryKey: ['sales-invoices'] }) }, onError: (e: any) => toast.error(e.response?.data?.message || 'Error') })
-  const cancelMutation = useMutation({ mutationFn: salesService.cancel, onSuccess: () => { toast.success('Factura cancelada'); qc.invalidateQueries({ queryKey: ['sales-invoices'] }) } })
-  const deleteMutation = useMutation({ mutationFn: salesService.delete, onSuccess: () => { toast.success('Eliminada'); qc.invalidateQueries({ queryKey: ['sales-invoices'] }) } })
+  const cancelMutation = useMutation({
+    mutationFn: salesService.cancel,
+    onSuccess: () => { toast.success('Factura anulada'); qc.invalidateQueries({ queryKey: ['sales-invoices'] }) },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Error')
+  })
+
+  const downloadPdf = async (id: number, fullNumber: string) => {
+    try {
+      const res = await salesService.getPdf(id)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a'); a.href = url; a.download = `factura-${fullNumber}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al descargar PDF') }
+  }
 
   const columns: Column<any>[] = [
     { key: 'fullNumber', header: 'Número', width: '130px', render: r => <span className="font-mono text-xs">{r.fullNumber}</span> },
@@ -36,11 +48,10 @@ export default function SalesInvoicesPage() {
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="facturas-venta"
           actions={row => (
             <>
-              <button className="btn-ghost btn-sm p-1" onClick={() => navigate(`/sales/${row.id}`)}><Eye className="w-3.5 h-3.5" /></button>
-              {row.status === 'draft' && <>
-                <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => confirmMutation.mutate(row.id)}><CheckCircle className="w-3.5 h-3.5" /></button>
-                <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => cancelMutation.mutate(row.id)}><XCircle className="w-3.5 h-3.5" /></button>
-              </>}
+              <button className="btn-ghost btn-sm p-1" title="Ver" onClick={() => navigate(`/sales/${row.id}`)}><Eye className="w-3.5 h-3.5" /></button>
+              {row.status !== 'draft' && <button className="btn-ghost btn-sm p-1" title="PDF" onClick={() => downloadPdf(row.id, row.fullNumber)}><FileDown className="w-3.5 h-3.5" /></button>}
+              {row.status === 'draft' && <button className="btn-ghost btn-sm p-1 text-green-600" title="Confirmar" onClick={() => confirmMutation.mutate(row.id)}><CheckCircle className="w-3.5 h-3.5" /></button>}
+              {row.status !== 'cancelled' && row.status !== 'draft' && <button className="btn-ghost btn-sm p-1 text-red-500" title="Anular" onClick={() => { if (confirm('¿Anular esta factura?')) cancelMutation.mutate(row.id) }}><XCircle className="w-3.5 h-3.5" /></button>}
             </>
           )} />
       </div>

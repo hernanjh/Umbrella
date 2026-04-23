@@ -1,21 +1,34 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { suppliersService, paramsService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
-import { Plus, Edit2, Trash2, RotateCcw } from 'lucide-react'
+import SearchAutocomplete from '../components/ui/SearchAutocomplete'
+import { Plus, Edit2, Trash2, RotateCcw, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
 
 export default function SuppliersPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [modal, setModal] = useState<{ open: boolean; data?: any }>({ open: false })
   const [form, setForm] = useState<any>({})
+  const [selectedVat, setSelectedVat] = useState<any>(null)
+  const [selectedPayCond, setSelectedPayCond] = useState<any>(null)
 
   const { data, isLoading, refetch } = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersService.getAll({ page: 1, pageSize: 200 }) })
   const { data: vatConditions } = useQuery({ queryKey: ['vat-conditions'], queryFn: paramsService.getVatConditions })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
+
+  useEffect(() => {
+    if (modal.open) {
+      const d = modal.data
+      setSelectedVat(d?.vatConditionId ? { id: d.vatConditionId, label: d.vatConditionName ?? '' } : null)
+      setSelectedPayCond(d?.paymentConditionId ? { id: d.paymentConditionId, label: d.paymentConditionName ?? '' } : null)
+    }
+  }, [modal.open, modal.data])
 
   const saveMutation = useMutation({
     mutationFn: (d: any) => modal.data?.id ? suppliersService.update(modal.data.id, d) : suppliersService.create(d),
@@ -35,7 +48,10 @@ export default function SuppliersPage() {
     { key: 'isActive', header: 'Estado', render: r => <Badge variant={r.isActive ? 'green' : 'red'}>{r.isActive ? 'Activo' : 'Inactivo'}</Badge> },
   ]
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); saveMutation.mutate(form) }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    saveMutation.mutate({ ...form, vatConditionId: selectedVat?.id ?? null, paymentConditionId: selectedPayCond?.id ?? null })
+  }
 
   return (
     <div>
@@ -45,6 +61,7 @@ export default function SuppliersPage() {
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="proveedores"
           actions={row => (
             <>
+              <button className="btn-ghost btn-sm p-1" title="Cuenta corriente" onClick={() => navigate(`/suppliers/${row.id}/account`)}><Wallet className="w-3.5 h-3.5" /></button>
               <button className="btn-ghost btn-sm p-1" onClick={() => { setForm(row); setModal({ open: true, data: row }) }}><Edit2 className="w-3.5 h-3.5" /></button>
               {!row.isDeleted
                 ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)}><Trash2 className="w-3.5 h-3.5" /></button>
@@ -62,21 +79,11 @@ export default function SuppliersPage() {
           <div className="form-group"><label className="label">Teléfono</label><input className="input" value={form.phone ?? ''} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Ciudad</label><input className="input" value={form.city ?? ''} onChange={e => setForm((f: any) => ({ ...f, city: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Contacto</label><input className="input" value={form.contactPerson ?? ''} onChange={e => setForm((f: any) => ({ ...f, contactPerson: e.target.value }))} /></div>
-          <div className="form-group">
-            <label className="label">Cond. IVA</label>
-            <select className="input" value={form.vatConditionId ?? ''} onChange={e => setForm((f: any) => ({ ...f, vatConditionId: +e.target.value || null }))}>
-              <option value="">Seleccionar...</option>
-              {(vatConditions ?? []).map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="label">Cond. de Pago</label>
-            <select className="input" value={form.paymentConditionId ?? ''} onChange={e => setForm((f: any) => ({ ...f, paymentConditionId: +e.target.value || null }))}>
-              <option value="">Seleccionar...</option>
-              {(paymentConditions ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div className="form-group"><label className="label">Notas</label><textarea className="input" rows={2} value={form.notes ?? ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} /></div>
+          <SearchAutocomplete label="Cond. IVA" value={selectedVat} onChange={setSelectedVat}
+            onSearch={async (t) => (vatConditions ?? []).filter((v: any) => v.name.toLowerCase().includes((t ?? '').toLowerCase())).map((v: any) => ({ id: v.id, label: v.name }))} />
+          <SearchAutocomplete label="Cond. de Pago" value={selectedPayCond} onChange={setSelectedPayCond}
+            onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
+          <div className="form-group col-span-2"><label className="label">Notas</label><textarea className="input" rows={2} value={form.notes ?? ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} /></div>
         </form>
       </Modal>
     </div>

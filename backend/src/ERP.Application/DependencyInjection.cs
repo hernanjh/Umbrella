@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<IPurchasePaymentService, PurchasePaymentService>();
         services.AddScoped<IClientAccountService, ClientAccountService>();
         services.AddScoped<ICashService, CashService>();
+        services.AddScoped<IInvoicePdfService, InvoicePdfService>();
+        services.AddScoped<ISupplierAccountService, SupplierAccountService>();
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         return services;
     }

@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { clientAccountService } from '../services'
+import { supplierAccountService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
-import SalesInvoicePreview from '../components/payments/SalesInvoicePreview'
+import PurchaseInvoicePreview from '../components/payments/PurchaseInvoicePreview'
 import { ArrowLeft, FileText, Banknote } from 'lucide-react'
 import { format } from 'date-fns'
 
-export default function ClientAccountPage() {
+export default function SupplierAccountPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<number | null>(null)
   const { data, isLoading } = useQuery({
-    queryKey: ['client-account', id],
-    queryFn: () => clientAccountService.get(+id!),
+    queryKey: ['supplier-account', id],
+    queryFn: () => supplierAccountService.get(+id!),
     enabled: !!id,
   })
 
@@ -23,26 +23,18 @@ export default function ClientAccountPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={data ? `Cuenta Corriente — ${data.clientName}` : 'Cuenta Corriente'}
-        subtitle={data?.clientCuit ? `CUIT ${data.clientCuit}` : undefined}
-        actions={<button className="btn-secondary" onClick={() => navigate('/clients')}><ArrowLeft className="w-4 h-4" /> Volver</button>}
+        title={data ? `Cuenta Corriente — ${data.supplierName}` : 'Cuenta Corriente'}
+        subtitle={data?.cuit ? `CUIT ${data.cuit}` : undefined}
+        actions={<button className="btn-secondary" onClick={() => navigate('/payables')}><ArrowLeft className="w-4 h-4" /> Volver</button>}
       />
 
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card p-4">
-            <div className="text-sm text-gray-500">Total facturado</div>
-            <div className="text-2xl font-bold">{fmt(data.totalInvoiced)}</div>
-          </div>
-          <div className="card p-4">
-            <div className="text-sm text-gray-500">Total pagado</div>
-            <div className="text-2xl font-bold text-green-700 dark:text-green-400">{fmt(data.totalPaid)}</div>
-          </div>
+          <div className="card p-4"><div className="text-sm text-gray-500">Total facturado</div><div className="text-2xl font-bold">{fmt(data.totalInvoiced)}</div></div>
+          <div className="card p-4"><div className="text-sm text-gray-500">Total pagado</div><div className="text-2xl font-bold text-green-700 dark:text-green-400">{fmt(data.totalPaid)}</div></div>
           <div className="card p-4">
             <div className="text-sm text-gray-500">Saldo actual</div>
-            <div className={`text-2xl font-bold ${data.currentBalance > 0 ? 'text-amber-700 dark:text-amber-400' : data.currentBalance < 0 ? 'text-red-600' : ''}`}>
-              {fmt(data.currentBalance)}
-            </div>
+            <div className={`text-2xl font-bold ${data.currentBalance > 0 ? 'text-amber-700 dark:text-amber-400' : data.currentBalance < 0 ? 'text-red-600' : ''}`}>{fmt(data.currentBalance)}</div>
           </div>
         </div>
       )}
@@ -93,8 +85,8 @@ export default function ClientAccountPage() {
         </div>
       </div>
 
-      <Modal open={previewId != null} onClose={() => setPreviewId(null)} title="Factura de Venta" size="2xl">
-        {previewId != null && <SalesInvoicePreview invoiceId={previewId} />}
+      <Modal open={previewId != null} onClose={() => setPreviewId(null)} title="Factura de Compra" size="2xl">
+        {previewId != null && <PurchaseInvoicePreview invoiceId={previewId} />}
       </Modal>
     </div>
   )

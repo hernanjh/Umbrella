@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { purchasesService, suppliersService, productsService, paramsService, stockService } from '../services'
@@ -8,6 +8,15 @@ import PaymentsSection from '../components/payments/PaymentsSection'
 import { Plus, Trash2, Save, ArrowLeft, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+
+const VAT_OPTIONS = [
+  { id: 0, label: '0%' },
+  { id: 105, label: '10.5%' },
+  { id: 21, label: '21%' },
+  { id: 27, label: '27%' },
+]
+const vatIdToRate = (id: number) => id === 105 ? 10.5 : id
+const vatRateToId = (rate: number) => rate === 10.5 ? 105 : rate
 
 interface PurchaseItem { productId: number; productName: string; quantity: number; unitPrice: number; discountPercentage: number; vatRate: number; sortOrder: number }
 
@@ -20,6 +29,7 @@ export default function PurchaseInvoiceFormPage() {
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null)
   const [selectedLocation, setSelectedLocation] = useState<any>(null)
   const [selectedPayment, setSelectedPayment] = useState<any>(null)
+  const [selectedInvoiceType, setSelectedInvoiceType] = useState<any>(null)
   const [invoiceType, setInvoiceType] = useState('A')
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState('')
@@ -29,6 +39,8 @@ export default function PurchaseInvoiceFormPage() {
 
   const { data: locations } = useQuery({ queryKey: ['stock-locations'], queryFn: stockService.getLocations })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
+  const { data: invoiceTypes } = useQuery({ queryKey: ['invoice-types'], queryFn: paramsService.getInvoiceTypes })
+  const purchaseInvoiceTypes = useMemo(() => (invoiceTypes ?? []).filter((it: any) => it.kind === 'purchase' && it.isActive), [invoiceTypes])
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['purchase-invoice', id],
@@ -39,6 +51,10 @@ export default function PurchaseInvoiceFormPage() {
   useEffect(() => {
     if (!isEdit || !existingInvoice || hydrated) return
     setInvoiceType(existingInvoice.invoiceType)
+    const matchingType = purchaseInvoiceTypes.find((t: any) => t.code === existingInvoice.invoiceType)
+    setSelectedInvoiceType(matchingType
+      ? { id: matchingType.id, label: matchingType.name, sublabel: matchingType.code }
+      : { id: 0, label: existingInvoice.invoiceType, sublabel: existingInvoice.invoiceType })
     setInvoiceDate(format(new Date(existingInvoice.invoiceDate), 'yyyy-MM-dd'))
     setSupplierInvoiceNumber(existingInvoice.supplierInvoiceNumber ?? '')
     setNotes(existingInvoice.notes ?? '')
@@ -83,8 +99,9 @@ export default function PurchaseInvoiceFormPage() {
     if (!selectedSupplier) return toast.error('Seleccione un proveedor')
     if (!selectedLocation) return toast.error('Seleccione locación de stock')
     if (items.length === 0) return toast.error('Agregue al menos un item')
+    const typeCode = selectedInvoiceType?.sublabel ?? invoiceType
     saveMutation.mutate({
-      supplierInvoiceNumber, invoiceType, invoiceDate,
+      supplierInvoiceNumber, invoiceType: typeCode, invoiceDate,
       supplierId: selectedSupplier.id,
       paymentConditionId: selectedPayment?.id,
       stockLocationId: selectedLocation.id,
@@ -112,25 +129,18 @@ export default function PurchaseInvoiceFormPage() {
           )}
         </>} />
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="form-group"><label className="label">Tipo</label>
-          <select className="input" value={invoiceType} onChange={e => setInvoiceType(e.target.value)} disabled={!editable}><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>
-        </div>
+        <SearchAutocomplete label="Tipo" value={selectedInvoiceType} onChange={setSelectedInvoiceType} disabled={!editable}
+          onSearch={async (t) => purchaseInvoiceTypes.filter((it: any) => it.name.toLowerCase().includes((t ?? '').toLowerCase()) || it.code.toLowerCase().includes((t ?? '').toLowerCase())).map((it: any) => ({ id: it.id, label: it.name, sublabel: it.code }))} />
         <div className="form-group"><label className="label">Fecha</label><input type="date" className="input" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} disabled={!editable} /></div>
         <div className="form-group"><label className="label">Número comprobante</label><input className="input" value={supplierInvoiceNumber} onChange={e => setSupplierInvoiceNumber(e.target.value)} disabled={!editable} /></div>
         <div className="form-group col-span-2">
           <SearchAutocomplete label="Proveedor *" value={selectedSupplier} onChange={setSelectedSupplier} disabled={!editable}
-            onSearch={async (t) => { const r = await suppliersService.search(t); return r.map((s: any) => ({ id: s.id, label: s.businessName, sublabel: s.cuit })) }} />
+            onSearch={async (t) => { const r = await suppliersService.search(t ?? ''); return r.map((s: any) => ({ id: s.id, label: s.businessName, sublabel: s.cuit })) }} />
         </div>
-        <div className="form-group">
-          <label className="label">Locación de Stock *</label>
-          <SearchAutocomplete value={selectedLocation} onChange={setSelectedLocation} disabled={!editable}
-            onSearch={async (t) => (locations ?? []).filter((l: any) => l.name.toLowerCase().includes(t.toLowerCase())).map((l: any) => ({ id: l.id, label: l.name }))} />
-        </div>
-        <div className="form-group">
-          <label className="label">Cond. de Pago</label>
-          <SearchAutocomplete value={selectedPayment} onChange={setSelectedPayment} disabled={!editable}
-            onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes(t.toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
-        </div>
+        <SearchAutocomplete label="Locación de Stock *" value={selectedLocation} onChange={setSelectedLocation} disabled={!editable}
+          onSearch={async (t) => (locations ?? []).filter((l: any) => l.name.toLowerCase().includes((t ?? '').toLowerCase())).map((l: any) => ({ id: l.id, label: l.name }))} />
+        <SearchAutocomplete label="Cond. de Pago" value={selectedPayment} onChange={setSelectedPayment} disabled={!editable}
+          onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
       </div>
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
@@ -139,7 +149,7 @@ export default function PurchaseInvoiceFormPage() {
         </div>
         <div className="table-container">
           <table className="table">
-            <thead><tr><th>Producto</th><th>Cant.</th><th>Precio Unit.</th><th>Dto.%</th><th>IVA%</th><th>Subtotal</th><th></th></tr></thead>
+            <thead><tr><th>Producto</th><th>Cant.</th><th>Precio Unit.</th><th>Dto.%</th><th>IVA</th><th>Subtotal</th><th></th></tr></thead>
             <tbody>
               {items.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Sin items</td></tr>}
               {items.map((item, idx) => {
@@ -154,7 +164,11 @@ export default function PurchaseInvoiceFormPage() {
                     <td><input className="input w-20" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(idx, 'quantity', +e.target.value)} disabled={!editable} /></td>
                     <td><input className="input w-28" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', +e.target.value)} disabled={!editable} /></td>
                     <td><input className="input w-20" type="number" min="0" max="100" value={item.discountPercentage} onChange={e => updateItem(idx, 'discountPercentage', +e.target.value)} disabled={!editable} /></td>
-                    <td><select className="input w-20" value={item.vatRate} onChange={e => updateItem(idx, 'vatRate', +e.target.value)} disabled={!editable}>{[0, 10.5, 21, 27].map(v => <option key={v} value={v}>{v}%</option>)}</select></td>
+                    <td className="min-w-[100px]">
+                      <SearchAutocomplete value={{ id: vatRateToId(item.vatRate), label: `${item.vatRate}%` }} disabled={!editable}
+                        onChange={opt => { if (opt) updateItem(idx, 'vatRate', vatIdToRate(opt.id)) }}
+                        onSearch={async () => VAT_OPTIONS} />
+                    </td>
                     <td className="font-mono font-medium">$ {net.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     <td>{editable && <button className="text-red-500" onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4" /></button>}</td>
                   </tr>

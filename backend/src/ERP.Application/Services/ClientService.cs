@@ -48,17 +48,23 @@ public class ClientService : IClientService
 
     public async Task<IEnumerable<ClientSearchDto>> SearchAsync(string term)
     {
-        var p = $"%{term}%";
+        var p = $"%{term ?? ""}%";
         return await _db.Clients
             .Include(c => c.DefaultPriceList)
             .Include(c => c.ClientType).ThenInclude(ct => ct!.DefaultPriceList)
+            .Include(c => c.AssignedSeller)
+            .Include(c => c.Zone).ThenInclude(z => z!.DefaultSeller)
             .Where(c => EF.Functions.Like(c.BusinessName, p) || (c.Cuit != null && EF.Functions.Like(c.Cuit, p)) || EF.Functions.Like(c.Code, p))
-            .Take(20)
+            .OrderBy(c => c.BusinessName)
+            .Take(50)
             .Select(c => new ClientSearchDto(
                 c.Id, c.Code, c.BusinessName, c.Cuit, c.City,
                 c.DefaultPriceListId ?? (c.ClientType != null ? c.ClientType.DefaultPriceListId : null),
                 c.DefaultPriceList != null ? c.DefaultPriceList.Name
-                    : (c.ClientType != null && c.ClientType.DefaultPriceList != null ? c.ClientType.DefaultPriceList.Name : null)
+                    : (c.ClientType != null && c.ClientType.DefaultPriceList != null ? c.ClientType.DefaultPriceList.Name : null),
+                c.AssignedSellerId ?? (c.Zone != null ? c.Zone.DefaultSellerId : null),
+                c.AssignedSeller != null ? c.AssignedSeller.FirstName + " " + c.AssignedSeller.LastName
+                    : (c.Zone != null && c.Zone.DefaultSeller != null ? c.Zone.DefaultSeller.FirstName + " " + c.Zone.DefaultSeller.LastName : null)
             ))
             .ToListAsync();
     }

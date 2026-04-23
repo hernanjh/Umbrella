@@ -55,6 +55,7 @@ const NAV = [
       { label: 'Cond. de IVA', to: '/params/vat-conditions' },
       { label: 'Cond. de Pago', to: '/params/payment-conditions' },
       { label: 'Formas de Pago', to: '/params/payment-methods' },
+      { label: 'Tipos de Comprobante', to: '/params/invoice-types' },
       { label: 'Categorías', to: '/params/categories' },
       { label: 'Locaciones de Stock', to: '/params/stock-locations' },
     ]

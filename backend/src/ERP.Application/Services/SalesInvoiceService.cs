@@ -238,13 +238,88 @@ public class SalesInvoiceService : ISalesInvoiceService
 
     public async Task CancelAsync(int id, string cancelledBy)
     {
-        var inv = await _db.SalesInvoices.FindAsync(id) ?? throw new KeyNotFoundException();
-        if (inv.Status == "cancelled") throw new InvalidOperationException("Ya está cancelada.");
-        inv.Status = "cancelled";
-        inv.ModifiedBy = cancelledBy;
-        inv.ModifiedAt = DateTime.UtcNow;
-        _db.SalesInvoices.Update(inv);
-        await _uow.SaveChangesAsync();
+        await _uow.BeginTransactionAsync();
+        try
+        {
+            var inv = await _db.SalesInvoices.Include(i => i.Items).FirstOrDefaultAsync(i => i.Id == id)
+                ?? throw new KeyNotFoundException();
+            if (inv.Status == "cancelled") throw new InvalidOperationException("Ya está cancelada.");
+
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Id == inv.ClientId);
+            var payments = await _db.SalesPayments.Where(p => p.SalesInvoiceId == id && !p.IsDeleted).ToListAsync();
+            foreach (var p in payments)
+            {
+                p.IsDeleted = true;
+                p.DeletedBy = cancelledBy;
+                p.DeletedAt = DateTime.UtcNow;
+                _db.SalesPayments.Update(p);
+
+                if (client != null) client.CurrentBalance += p.Amount;
+
+                var cashMoves = await _db.CashMovements
+                    .Where(m => m.ReferenceType == "SalesPayment" && m.ReferenceId == p.Id && !m.IsDeleted)
+                    .ToListAsync();
+                foreach (var m in cashMoves)
+                {
+                    var session = await _db.CashSessions.FindAsync(m.CashSessionId);
+                    if (session?.Status == "open")
+                    {
+                        m.IsDeleted = true;
+                        m.DeletedBy = cancelledBy;
+                        m.DeletedAt = DateTime.UtcNow;
+                        _db.CashMovements.Update(m);
+                    }
+                }
+            }
+            if (client != null) _db.Clients.Update(client);
+
+            if (inv.Status == "confirmed" || inv.Status == "partially_paid" || inv.Status == "paid")
+            {
+                foreach (var item in inv.Items)
+                {
+                    var locationId = item.StockLocationId > 0 ? item.StockLocationId : inv.StockLocationId;
+                    var stock = await _db.StockEntries.FirstOrDefaultAsync(s => s.ProductId == item.ProductId && s.StockLocationId == locationId);
+                    if (stock == null)
+                    {
+                        stock = new StockEntry { Code = Guid.NewGuid().ToString("N")[..8].ToUpper(), ProductId = item.ProductId, StockLocationId = locationId, Quantity = 0, CreatedBy = cancelledBy };
+                        _db.StockEntries.Add(stock);
+                        await _db.SaveChangesAsync();
+                    }
+                    var before = stock.Quantity;
+                    stock.Quantity += item.Quantity;
+                    _db.StockEntries.Update(stock);
+
+                    _db.StockMovements.Add(new StockMovement
+                    {
+                        Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+                        ProductId = item.ProductId,
+                        StockLocationId = locationId,
+                        Quantity = item.Quantity,
+                        MovementType = "SaleCancelled",
+                        ReferenceType = "SalesInvoice",
+                        ReferenceId = inv.Id,
+                        Reason = "Anulación de factura",
+                        StockBefore = before,
+                        StockAfter = stock.Quantity,
+                        CreatedBy = cancelledBy,
+                    });
+                }
+            }
+
+            inv.PaidAmount = 0;
+            inv.BalanceDue = 0;
+            inv.Status = "cancelled";
+            inv.ModifiedBy = cancelledBy;
+            inv.ModifiedAt = DateTime.UtcNow;
+            _db.SalesInvoices.Update(inv);
+
+            await _uow.CommitTransactionAsync();
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync();
+            throw;
+        }
     }
 
     public async Task<SalesInvoiceDetailDto> UpdateAsync(int id, CreateSalesInvoiceDto dto, string modifiedBy)

@@ -1,6 +1,7 @@
 using ERP.Application.DTOs.Common;
 using ERP.Application.DTOs.Invoices;
 using ERP.Application.Interfaces;
+using ERP.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,15 @@ namespace ERP.API.Controllers;
 public class SalesInvoicesController : BaseController
 {
     private readonly ISalesInvoiceService _service;
-    public SalesInvoicesController(ISalesInvoiceService service) { _service = service; }
+    private readonly IInvoicePdfService _pdf;
+    public SalesInvoicesController(ISalesInvoiceService service, IInvoicePdfService pdf) { _service = service; _pdf = pdf; }
+
+    [HttpGet("{id}/pdf")]
+    public async Task<IActionResult> GetPdf(int id)
+    {
+        var bytes = await _pdf.GenerateSalesInvoicePdfAsync(id);
+        return File(bytes, "application/pdf", $"factura-{id}.pdf");
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] QueryParamsDto query)

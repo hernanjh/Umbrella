@@ -29,7 +29,9 @@ import ProfilePage from './pages/ProfilePage'
 import UsersPage from './pages/security/UsersPage'
 import RolesPage from './pages/security/RolesPage'
 import PaymentMethodsPage from './pages/params/PaymentMethodsPage'
+import InvoiceTypesPage from './pages/params/InvoiceTypesPage'
 import ClientAccountPage from './pages/ClientAccountPage'
+import SupplierAccountPage from './pages/SupplierAccountPage'
 import CashPage from './pages/CashPage'
 import CashSessionsPage from './pages/CashSessionsPage'
 import CashSessionDetailPage from './pages/CashSessionDetailPage'
@@ -56,6 +58,7 @@ export default function App() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="clients/:id/account" element={<ClientAccountPage />} />
+        <Route path="suppliers/:id/account" element={<SupplierAccountPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="products" element={<ProductsPage />} />
         <Route path="price-lists" element={<PriceListsPage />} />
@@ -82,6 +85,7 @@ export default function App() {
         <Route path="params/vat-conditions" element={<VatConditionsPage />} />
         <Route path="params/payment-conditions" element={<PaymentConditionsPage />} />
         <Route path="params/payment-methods" element={<PaymentMethodsPage />} />
+        <Route path="params/invoice-types" element={<InvoiceTypesPage />} />
         <Route path="params/stock-locations" element={<StockLocationsPage />} />
         <Route path="params/system-config" element={<SystemConfigPage />} />
         <Route path="security/users" element={<UsersPage />} />

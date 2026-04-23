@@ -122,6 +122,19 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
+        if (!await context.InvoiceTypes.AnyAsync())
+        {
+            context.InvoiceTypes.AddRange(
+                new InvoiceType { Code = "A", Name = "Factura A", Kind = "sales", CreatedBy = "system" },
+                new InvoiceType { Code = "B", Name = "Factura B", Kind = "sales", CreatedBy = "system" },
+                new InvoiceType { Code = "C", Name = "Factura C", Kind = "sales", CreatedBy = "system" },
+                new InvoiceType { Code = "X", Name = "Comprobante X", Description = "Documento interno sin valor fiscal", Kind = "sales", CreatedBy = "system" },
+                new InvoiceType { Code = "NC-A", Name = "Nota de Crédito A", Kind = "sales", CreatedBy = "system" },
+                new InvoiceType { Code = "NC-B", Name = "Nota de Crédito B", Kind = "sales", CreatedBy = "system" }
+            );
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.PaymentMethods.AnyAsync())
         {
             context.PaymentMethods.AddRange(
@@ -194,6 +207,31 @@ public static class DbSeeder
                 )");
             await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesPayments_SalesInvoiceId ON SalesPayments(SalesInvoiceId)");
             await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesPayments_PaymentMethodId ON SalesPayments(PaymentMethodId)");
+        }
+
+        if (!await ColumnExistsAsync(context, "Zones", "DefaultSellerId"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Zones ADD COLUMN DefaultSellerId INTEGER NULL");
+        }
+
+        if (!await TableExistsAsync(context, "InvoiceTypes"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE InvoiceTypes (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    Name TEXT NOT NULL DEFAULT '',
+                    Description TEXT NULL,
+                    Kind TEXT NOT NULL DEFAULT 'sales',
+                    IsActive INTEGER NOT NULL DEFAULT 1,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL
+                )");
         }
 
         if (!await TableExistsAsync(context, "CashSessions"))

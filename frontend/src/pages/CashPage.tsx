@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cashService, paymentMethodsService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
+import SearchAutocomplete from '../components/ui/SearchAutocomplete'
 import { Plus, Trash2, LockOpen, Lock, Banknote, History } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -152,20 +153,15 @@ export default function CashPage() {
       <Modal open={moveModal} onClose={() => setMoveModal(false)} title="Movimiento manual de caja"
         footer={<><button className="btn-secondary" onClick={() => setMoveModal(false)}>Cancelar</button><button className="btn-primary" onClick={() => addMoveMut.mutate()} disabled={addMoveMut.isPending}>Registrar</button></>}>
         <div className="space-y-3">
-          <div className="form-group">
-            <label className="label">Tipo</label>
-            <select className="input" value={moveForm.type} onChange={e => setMoveForm((f: any) => ({ ...f, type: e.target.value }))}>
-              {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+          <SearchAutocomplete label="Tipo" required
+            value={{ id: TYPES.findIndex(t => t.value === moveForm.type) + 1, label: TYPES.find(t => t.value === moveForm.type)?.label ?? '' }}
+            onChange={opt => { if (opt) setMoveForm((f: any) => ({ ...f, type: TYPES[opt.id - 1].value })) }}
+            onSearch={async () => TYPES.map((t, i) => ({ id: i + 1, label: t.label }))} />
           <div className="form-group"><label className="label">Monto</label><input className="input" type="number" step="0.01" value={moveForm.amount} onChange={e => setMoveForm((f: any) => ({ ...f, amount: e.target.value }))} /></div>
-          <div className="form-group">
-            <label className="label">Forma de pago (opcional)</label>
-            <select className="input" value={moveForm.paymentMethodId} onChange={e => setMoveForm((f: any) => ({ ...f, paymentMethodId: e.target.value }))}>
-              <option value={0}>— Sin especificar —</option>
-              {(methods ?? []).map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
+          <SearchAutocomplete label="Forma de pago (opcional)"
+            value={moveForm.paymentMethodId ? { id: +moveForm.paymentMethodId, label: (methods ?? []).find((m: any) => m.id === +moveForm.paymentMethodId)?.name ?? '' } : null}
+            onChange={opt => setMoveForm((f: any) => ({ ...f, paymentMethodId: opt?.id ?? 0 }))}
+            onSearch={async (t) => (methods ?? []).filter((m: any) => m.name.toLowerCase().includes((t ?? '').toLowerCase())).map((m: any) => ({ id: m.id, label: m.name }))} />
           <div className="form-group"><label className="label">Descripción</label><input className="input" value={moveForm.description} onChange={e => setMoveForm((f: any) => ({ ...f, description: e.target.value }))} /></div>
         </div>
       </Modal>

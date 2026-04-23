@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { clientsService, paramsService, suppliersService } from '../services'
+import { clientsService, paramsService, priceListsService, usersService } from '../services'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
@@ -18,12 +18,35 @@ export default function ClientsPage() {
   const [selectedClientType, setSelectedClientType] = useState<any>(null)
   const [selectedZone, setSelectedZone] = useState<any>(null)
   const [selectedSeller, setSelectedSeller] = useState<any>(null)
+  const [selectedVat, setSelectedVat] = useState<any>(null)
+  const [selectedPayCond, setSelectedPayCond] = useState<any>(null)
+
+  useEffect(() => {
+    if (modal.open) {
+      const d = modal.data
+      setSelectedClientType(d?.clientTypeId ? { id: d.clientTypeId, label: d.clientTypeName ?? '' } : null)
+      setSelectedZone(d?.zoneId ? { id: d.zoneId, label: d.zoneName ?? '' } : null)
+      setSelectedSeller(d?.assignedSellerId ? { id: d.assignedSellerId, label: d.assignedSellerName ?? '' } : null)
+      setSelectedVat(d?.vatConditionId ? { id: d.vatConditionId, label: d.vatConditionName ?? '' } : null)
+      setSelectedPayCond(d?.paymentConditionId ? { id: d.paymentConditionId, label: d.paymentConditionName ?? '' } : null)
+    }
+  }, [modal.open, modal.data])
+
+  const [selectedPriceList, setSelectedPriceList] = useState<any>(null)
+
+  useEffect(() => {
+    if (modal.open) {
+      const d = modal.data
+      setSelectedPriceList(d?.defaultPriceListId ? { id: d.defaultPriceListId, label: d.defaultPriceListName ?? '' } : null)
+    }
+  }, [modal.open, modal.data])
 
   const { data: clients, isLoading, refetch } = useQuery({ queryKey: ['clients'], queryFn: () => clientsService.getAll({ page: 1, pageSize: 200 }) })
   const { data: clientTypes } = useQuery({ queryKey: ['client-types'], queryFn: paramsService.getClientTypes })
   const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: paramsService.getZones })
   const { data: vatConditions } = useQuery({ queryKey: ['vat-conditions'], queryFn: paramsService.getVatConditions })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
+  const { data: priceLists } = useQuery({ queryKey: ['price-lists-all'], queryFn: () => priceListsService.getAll({ page: 1, pageSize: 200 }) })
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => modal.data?.id ? clientsService.update(modal.data.id, data) : clientsService.create(data),
@@ -47,7 +70,15 @@ export default function ClientsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    saveMutation.mutate({ ...form, clientTypeId: selectedClientType?.id, zoneId: selectedZone?.id, assignedSellerId: selectedSeller?.id })
+    saveMutation.mutate({
+      ...form,
+      clientTypeId: selectedClientType?.id ?? null,
+      zoneId: selectedZone?.id ?? null,
+      assignedSellerId: selectedSeller?.id ?? null,
+      vatConditionId: selectedVat?.id ?? null,
+      paymentConditionId: selectedPayCond?.id ?? null,
+      defaultPriceListId: selectedPriceList?.id ?? null,
+    })
   }
 
   const columns: Column<any>[] = [
@@ -96,30 +127,18 @@ export default function ClientsPage() {
           <div className="form-group"><label className="label">Teléfono</label><input className="input" value={form.phone ?? ''} onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Ciudad</label><input className="input" value={form.city ?? ''} onChange={e => setForm((f: any) => ({ ...f, city: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Dirección</label><input className="input" value={form.address ?? ''} onChange={e => setForm((f: any) => ({ ...f, address: e.target.value }))} /></div>
-          <div className="form-group">
-            <label className="label">Tipo de Cliente</label>
-            <SearchAutocomplete value={selectedClientType} onChange={setSelectedClientType}
-              onSearch={async (t) => (clientTypes ?? []).filter((c: any) => c.name.toLowerCase().includes(t.toLowerCase())).map((c: any) => ({ id: c.id, label: c.name }))} />
-          </div>
-          <div className="form-group">
-            <label className="label">Zona</label>
-            <SearchAutocomplete value={selectedZone} onChange={setSelectedZone}
-              onSearch={async (t) => (zones ?? []).filter((z: any) => z.name.toLowerCase().includes(t.toLowerCase())).map((z: any) => ({ id: z.id, label: z.name }))} />
-          </div>
-          <div className="form-group">
-            <label className="label">Cond. IVA</label>
-            <select className="input" value={form.vatConditionId ?? ''} onChange={e => setForm((f: any) => ({ ...f, vatConditionId: +e.target.value || null }))}>
-              <option value="">Seleccionar...</option>
-              {(vatConditions ?? []).map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="label">Cond. de Pago</label>
-            <select className="input" value={form.paymentConditionId ?? ''} onChange={e => setForm((f: any) => ({ ...f, paymentConditionId: +e.target.value || null }))}>
-              <option value="">Seleccionar...</option>
-              {(paymentConditions ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
+          <SearchAutocomplete label="Tipo de Cliente" value={selectedClientType} onChange={setSelectedClientType}
+            onSearch={async (t) => (clientTypes ?? []).filter((c: any) => c.name.toLowerCase().includes((t ?? '').toLowerCase())).map((c: any) => ({ id: c.id, label: c.name }))} />
+          <SearchAutocomplete label="Zona" value={selectedZone} onChange={setSelectedZone}
+            onSearch={async (t) => (zones ?? []).filter((z: any) => z.name.toLowerCase().includes((t ?? '').toLowerCase())).map((z: any) => ({ id: z.id, label: z.name }))} />
+          <SearchAutocomplete label="Cond. IVA" value={selectedVat} onChange={setSelectedVat}
+            onSearch={async (t) => (vatConditions ?? []).filter((v: any) => v.name.toLowerCase().includes((t ?? '').toLowerCase())).map((v: any) => ({ id: v.id, label: v.name }))} />
+          <SearchAutocomplete label="Cond. de Pago" value={selectedPayCond} onChange={setSelectedPayCond}
+            onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
+          <SearchAutocomplete label="Vendedor asignado" value={selectedSeller} onChange={setSelectedSeller}
+            onSearch={async (t) => { const rs = await usersService.searchSellers(t ?? ''); return rs.map((u: any) => ({ id: u.id, label: `${u.firstName} ${u.lastName}`, sublabel: u.email })) }} />
+          <SearchAutocomplete label="Lista de Precios" value={selectedPriceList} onChange={setSelectedPriceList}
+            onSearch={async (t) => (priceLists?.items ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
           <div className="form-group col-span-2"><label className="label">Notas</label><textarea className="input" rows={2} value={form.notes ?? ''} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} /></div>
         </form>
       </Modal>

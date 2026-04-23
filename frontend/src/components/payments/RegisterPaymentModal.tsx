@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { paymentMethodsService, salesPaymentsService, purchasePaymentsService } from '../../services'
 import Modal from '../ui/Modal'
+import SearchAutocomplete from '../ui/SearchAutocomplete'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 
@@ -75,13 +76,10 @@ export default function RegisterPaymentModal({ open, onClose, kind, invoiceId, i
           <span>Saldo pendiente</span>
           <span className="font-semibold">$ {balanceDue.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
         </div>
-        <div className="form-group">
-          <label className="label">Forma de pago</label>
-          <select className="input" value={form.paymentMethodId} onChange={e => setForm((f: any) => ({ ...f, paymentMethodId: +e.target.value }))}>
-            <option value={0}>— Seleccionar —</option>
-            {(methods ?? []).map((m: any) => <option key={m.id} value={m.id}>{m.name}{m.affectsCash ? ' (caja)' : ''}</option>)}
-          </select>
-        </div>
+        <SearchAutocomplete label="Forma de pago" required
+          value={form.paymentMethodId ? { id: form.paymentMethodId, label: (methods ?? []).find((m: any) => m.id === form.paymentMethodId)?.name ?? '' } : null}
+          onChange={opt => setForm((f: any) => ({ ...f, paymentMethodId: opt?.id ?? 0 }))}
+          onSearch={async (t) => (methods ?? []).filter((m: any) => m.name.toLowerCase().includes((t ?? '').toLowerCase())).map((m: any) => ({ id: m.id, label: m.name, sublabel: m.affectsCash ? 'Afecta caja' : '' }))} />
         <div className="form-group"><label className="label">Fecha</label><input type="date" className="input" value={form.paymentDate} onChange={e => setForm((f: any) => ({ ...f, paymentDate: e.target.value }))} /></div>
         <div className="form-group"><label className="label">Monto *</label><input type="number" min="0.01" step="0.01" max={balanceDue} className="input" value={form.amount} onChange={e => setForm((f: any) => ({ ...f, amount: e.target.value }))} /></div>
         <div className="form-group"><label className="label">Referencia (nro de transferencia, cheque, etc.)</label><input className="input" value={form.reference} onChange={e => setForm((f: any) => ({ ...f, reference: e.target.value }))} /></div>

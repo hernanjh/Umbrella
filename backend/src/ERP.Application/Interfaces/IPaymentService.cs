@@ -28,3 +28,8 @@ public interface IClientAccountService
 {
     Task<ClientAccountDto> GetAsync(int clientId);
 }
+
+public interface ISupplierAccountService
+{
+    Task<SupplierAccountDto> GetAsync(int supplierId);
+}

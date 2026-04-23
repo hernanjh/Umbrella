@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { reportsService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
 import DataGrid, { Column } from '../components/ui/DataGrid'
 import { Wallet, AlertTriangle } from 'lucide-react'
 
 export default function PayablesPage() {
+  const navigate = useNavigate()
   const { data, isLoading, refetch } = useQuery({ queryKey: ['payables'], queryFn: reportsService.payables })
   const fmt = (n: any) => n == null ? '—' : `$ ${(+n).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
@@ -37,7 +39,12 @@ export default function PayablesPage() {
       </div>
 
       <div className="card p-5">
-        <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="cuentas-por-pagar" />
+        <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="cuentas-por-pagar"
+          actions={row => (
+            <button className="btn-ghost btn-sm p-1" title="Cuenta corriente" onClick={() => navigate(`/suppliers/${row.supplierId}/account`)}>
+              <Wallet className="w-3.5 h-3.5" />
+            </button>
+          )} />
       </div>
     </div>
   )

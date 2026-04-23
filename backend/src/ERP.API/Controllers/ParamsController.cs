@@ -31,16 +31,49 @@ public class ParamsController : BaseController
 
     // ---- ZONES ----
     [HttpGet("zones")] public async Task<IActionResult> GetZones()
-        => Ok(new { success = true, data = await _db.Zones.Select(x => new ZoneDto(x.Id, x.Code, x.Name, x.Description, x.IsActive)).ToListAsync() });
+        => Ok(new { success = true, data = await _db.Zones.Include(z => z.DefaultSeller)
+            .Select(x => new ZoneDto(x.Id, x.Code, x.Name, x.Description, x.IsActive, x.DefaultSellerId,
+                x.DefaultSeller != null ? x.DefaultSeller.FirstName + " " + x.DefaultSeller.LastName : null)).ToListAsync() });
 
     [HttpPost("zones")] public async Task<IActionResult> CreateZone([FromBody] CreateZoneDto dto)
-    { var e = new Zone { Code = dto.Code, Name = dto.Name, Description = dto.Description, CreatedBy = CurrentUserEmail }; _db.Zones.Add(e); await _uow.SaveChangesAsync(); return Ok(new { success = true, data = e.Id }); }
+    { var e = new Zone { Code = dto.Code, Name = dto.Name, Description = dto.Description, DefaultSellerId = dto.DefaultSellerId, CreatedBy = CurrentUserEmail }; _db.Zones.Add(e); await _uow.SaveChangesAsync(); return Ok(new { success = true, data = e.Id }); }
 
     [HttpPut("zones/{id}")] public async Task<IActionResult> UpdateZone(int id, [FromBody] UpdateZoneDto dto)
-    { var e = await _db.Zones.FindAsync(id) ?? throw new KeyNotFoundException(); e.Name = dto.Name; e.Description = dto.Description; e.IsActive = dto.IsActive; e.ModifiedBy = CurrentUserEmail; e.ModifiedAt = DateTime.UtcNow; await _uow.SaveChangesAsync(); return Ok(new { success = true }); }
+    { var e = await _db.Zones.FindAsync(id) ?? throw new KeyNotFoundException(); e.Name = dto.Name; e.Description = dto.Description; e.IsActive = dto.IsActive; e.DefaultSellerId = dto.DefaultSellerId; e.ModifiedBy = CurrentUserEmail; e.ModifiedAt = DateTime.UtcNow; await _uow.SaveChangesAsync(); return Ok(new { success = true }); }
 
     [HttpDelete("zones/{id}")] public async Task<IActionResult> DeleteZone(int id)
     { var e = await _db.Zones.FindAsync(id) ?? throw new KeyNotFoundException(); e.IsDeleted = true; e.DeletedBy = CurrentUserEmail; e.DeletedAt = DateTime.UtcNow; await _uow.SaveChangesAsync(); return Ok(new { success = true }); }
+
+    // ---- INVOICE TYPES ----
+    [HttpGet("invoice-types")] public async Task<IActionResult> GetInvoiceTypes()
+        => Ok(new { success = true, data = await _db.InvoiceTypes.OrderBy(x => x.Code)
+            .Select(x => new InvoiceTypeDto(x.Id, x.Code, x.Name, x.Description, x.Kind, x.IsActive)).ToListAsync() });
+
+    [HttpPost("invoice-types")] public async Task<IActionResult> CreateInvoiceType([FromBody] CreateInvoiceTypeDto dto)
+    {
+        if (await _db.InvoiceTypes.AnyAsync(it => it.Code == dto.Code && it.Kind == dto.Kind))
+            throw new InvalidOperationException($"Ya existe un tipo '{dto.Code}' para {dto.Kind}.");
+        var e = new InvoiceType { Code = dto.Code, Name = dto.Name, Description = dto.Description, Kind = dto.Kind, CreatedBy = CurrentUserEmail };
+        _db.InvoiceTypes.Add(e); await _uow.SaveChangesAsync();
+        return Ok(new { success = true, data = e.Id });
+    }
+
+    [HttpPut("invoice-types/{id}")] public async Task<IActionResult> UpdateInvoiceType(int id, [FromBody] UpdateInvoiceTypeDto dto)
+    {
+        var e = await _db.InvoiceTypes.FindAsync(id) ?? throw new KeyNotFoundException();
+        e.Name = dto.Name; e.Description = dto.Description; e.Kind = dto.Kind; e.IsActive = dto.IsActive;
+        e.ModifiedBy = CurrentUserEmail; e.ModifiedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpDelete("invoice-types/{id}")] public async Task<IActionResult> DeleteInvoiceType(int id)
+    {
+        var e = await _db.InvoiceTypes.FindAsync(id) ?? throw new KeyNotFoundException();
+        e.IsDeleted = true; e.DeletedBy = CurrentUserEmail; e.DeletedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
 
     // ---- VAT CONDITIONS ----
     [HttpGet("vat-conditions")] public async Task<IActionResult> GetVatConditions()

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, X, Loader2 } from 'lucide-react'
+import { Search, X, Loader2, ChevronDown } from 'lucide-react'
 import clsx from 'clsx'
 
-interface Option { id: number; label: string; sublabel?: string }
+interface Option { id: number; label: string; sublabel?: string; [key: string]: any }
 
 interface SearchAutocompleteProps {
   value: Option | null
@@ -29,6 +29,7 @@ export default function SearchAutocomplete({
   const containerRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const hasLoadedRef = useRef(false)
 
   useEffect(() => {
     if (value) setQuery(value.label)
@@ -63,18 +64,29 @@ export default function SearchAutocomplete({
     }
   }, [open, options.length])
 
+  const runSearch = async (term: string) => {
+    setLoading(true)
+    try {
+      const results = await onSearch(term)
+      setOptions(results)
+      setOpen(true)
+      hasLoadedRef.current = true
+    } catch {
+      setOptions([])
+      setOpen(true)
+    } finally { setLoading(false) }
+  }
+
   const handleInput = (q: string) => {
     setQuery(q)
     clearTimeout(timerRef.current)
-    if (q.length < 1) { setOptions([]); setOpen(false); return }
-    timerRef.current = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const results = await onSearch(q)
-        setOptions(results)
-        setOpen(true)
-      } finally { setLoading(false) }
-    }, 300)
+    timerRef.current = setTimeout(() => runSearch(q), 250)
+  }
+
+  const openAndLoad = () => {
+    if (disabled) return
+    if (options.length > 0) { setOpen(true); return }
+    runSearch('')
   }
 
   const select = (opt: Option) => {
@@ -87,6 +99,7 @@ export default function SearchAutocomplete({
     onChange(null)
     setQuery('')
     setOptions([])
+    hasLoadedRef.current = false
     inputRef.current?.focus()
   }
 
@@ -95,7 +108,10 @@ export default function SearchAutocomplete({
       ref={menuRef}
       style={{ position: 'fixed', left: menuPos.left, top: menuPos.top, width: menuPos.width, zIndex: 1000 }}
     >
-      {options.length > 0 ? (
+      {loading && (
+        <div className="card shadow-xl py-3 px-3 text-sm text-gray-500 dark:text-gray-400">Cargando…</div>
+      )}
+      {!loading && options.length > 0 && (
         <ul className="card shadow-xl overflow-auto max-h-60 py-1">
           {options.map(opt => (
             <li key={opt.id}
@@ -106,12 +122,11 @@ export default function SearchAutocomplete({
             </li>
           ))}
         </ul>
-      ) : (
-        !loading && query.length > 0 && (
-          <div className="card shadow-xl py-3 px-3 text-sm text-gray-500 dark:text-gray-400">
-            Sin resultados para "{query}"
-          </div>
-        )
+      )}
+      {!loading && options.length === 0 && (
+        <div className="card shadow-xl py-3 px-3 text-sm text-gray-500 dark:text-gray-400">
+          {query.length > 0 ? `Sin resultados para "${query}"` : 'Sin resultados'}
+        </div>
       )}
     </div>
   )
@@ -126,17 +141,23 @@ export default function SearchAutocomplete({
           type="text"
           value={query}
           onChange={e => handleInput(e.target.value)}
-          onFocus={() => { if (options.length > 0) setOpen(true) }}
+          onFocus={openAndLoad}
+          onClick={openAndLoad}
           placeholder={placeholder}
           disabled={disabled}
-          className={clsx('input pl-9 pr-8', error && 'border-red-500 focus:ring-red-500')}
+          className={clsx('input pl-9 pr-16', error && 'border-red-500 focus:ring-red-500')}
         />
-        {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
+        {loading && <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />}
         {!loading && value && (
-          <button onClick={clear} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+          <button type="button" onClick={clear} className="absolute right-9 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" title="Limpiar">
             <X className="w-4 h-4" />
           </button>
         )}
+        <button type="button" onMouseDown={e => { e.preventDefault(); openAndLoad() }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" title="Ver opciones"
+          disabled={disabled}>
+          <ChevronDown className={clsx('w-4 h-4 transition-transform', open && 'rotate-180')} />
+        </button>
       </div>
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
       {menu && createPortal(menu, document.body)}

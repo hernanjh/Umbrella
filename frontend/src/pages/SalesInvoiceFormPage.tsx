@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { salesService, clientsService, productsService, paramsService, stockService, priceListsService } from '../services'
+import { salesService, clientsService, productsService, paramsService, stockService, priceListsService, usersService } from '../services'
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
 import PageHeader from '../components/ui/PageHeader'
 import PaymentsSection from '../components/payments/PaymentsSection'
-import { Plus, Trash2, Save, ArrowLeft, CheckCircle } from 'lucide-react'
+import { Plus, Trash2, Save, ArrowLeft, CheckCircle, XCircle, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 
@@ -22,6 +22,15 @@ interface InvoiceItem {
   sortOrder: number
 }
 
+const VAT_OPTIONS = [
+  { id: 0, label: '0%' },
+  { id: 105, label: '10.5%' },
+  { id: 21, label: '21%' },
+  { id: 27, label: '27%' },
+]
+const vatIdToRate = (id: number) => id === 105 ? 10.5 : id
+const vatRateToId = (rate: number) => rate === 10.5 ? 105 : rate
+
 export default function SalesInvoiceFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -31,7 +40,7 @@ export default function SalesInvoiceFormPage() {
   const [selectedClient, setSelectedClient] = useState<any>(null)
   const [selectedSeller, setSelectedSeller] = useState<any>(null)
   const [selectedPriceList, setSelectedPriceList] = useState<any>(null)
-  const [invoiceType, setInvoiceType] = useState('A')
+  const [selectedInvoiceType, setSelectedInvoiceType] = useState<any>(null)
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<InvoiceItem[]>([])
@@ -41,6 +50,9 @@ export default function SalesInvoiceFormPage() {
   const { data: locations } = useQuery({ queryKey: ['stock-locations'], queryFn: stockService.getLocations })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
   const { data: priceLists } = useQuery({ queryKey: ['price-lists-all'], queryFn: () => priceListsService.getAll({ page: 1, pageSize: 200 }) })
+  const { data: invoiceTypes } = useQuery({ queryKey: ['invoice-types', 'sales'], queryFn: paramsService.getInvoiceTypes })
+
+  const salesInvoiceTypes = useMemo(() => (invoiceTypes ?? []).filter((it: any) => it.kind === 'sales' && it.isActive), [invoiceTypes])
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['sales-invoice', id],
@@ -60,17 +72,18 @@ export default function SalesInvoiceFormPage() {
     return m
   }, [priceListDetail])
 
+  const invoiceTypeCode = selectedInvoiceType?.sublabel ?? 'A'
+
   // Hydrate form when editing
   useEffect(() => {
     if (!isEdit || !existingInvoice || hydrated) return
-    setInvoiceType(existingInvoice.invoiceType)
+    const matchingType = salesInvoiceTypes.find((t: any) => t.code === existingInvoice.invoiceType)
+    setSelectedInvoiceType(matchingType
+      ? { id: matchingType.id, label: matchingType.name, sublabel: matchingType.code }
+      : { id: 0, label: existingInvoice.invoiceType, sublabel: existingInvoice.invoiceType })
     setInvoiceDate(format(new Date(existingInvoice.invoiceDate), 'yyyy-MM-dd'))
     setNotes(existingInvoice.notes ?? '')
-    setSelectedClient({
-      id: existingInvoice.clientId,
-      label: existingInvoice.clientName,
-      sublabel: existingInvoice.clientCuit,
-    })
+    setSelectedClient({ id: existingInvoice.clientId, label: existingInvoice.clientName, sublabel: existingInvoice.clientCuit })
     if (existingInvoice.sellerId) setSelectedSeller({ id: existingInvoice.sellerId, label: existingInvoice.sellerName })
     if (existingInvoice.priceListId) setSelectedPriceList({ id: existingInvoice.priceListId, label: existingInvoice.priceListName })
     if (existingInvoice.paymentConditionId) setSelectedPayment({ id: existingInvoice.paymentConditionId, label: existingInvoice.paymentConditionName })
@@ -87,12 +100,24 @@ export default function SalesInvoiceFormPage() {
       sortOrder: it.sortOrder,
     })))
     setHydrated(true)
-  }, [existingInvoice, isEdit, hydrated])
+  }, [existingInvoice, isEdit, hydrated, salesInvoiceTypes])
 
+  useEffect(() => {
+    if (hydrated) return
+    if (!selectedInvoiceType && salesInvoiceTypes.length > 0) {
+      const def = salesInvoiceTypes.find((t: any) => t.code === 'A') ?? salesInvoiceTypes[0]
+      setSelectedInvoiceType({ id: def.id, label: def.name, sublabel: def.code })
+    }
+  }, [salesInvoiceTypes, hydrated, selectedInvoiceType])
+
+  // Auto-fill price list + seller from client
   useEffect(() => {
     if (hydrated) return
     if (selectedClient?.defaultPriceListId) {
       setSelectedPriceList({ id: selectedClient.defaultPriceListId, label: selectedClient.defaultPriceListName ?? 'Lista' })
+    }
+    if (selectedClient?.assignedSellerId) {
+      setSelectedSeller({ id: selectedClient.assignedSellerId, label: selectedClient.assignedSellerName ?? 'Vendedor' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClient?.id])
@@ -145,13 +170,32 @@ export default function SalesInvoiceFormPage() {
     onError: (e: any) => toast.error(e.response?.data?.message || 'Error al confirmar'),
   })
 
+  const cancelMutation = useMutation({
+    mutationFn: () => salesService.cancel(+id!),
+    onSuccess: () => {
+      toast.success('Factura anulada. Stock y pagos revertidos.')
+      qc.invalidateQueries({ queryKey: ['sales-invoice', id] })
+      qc.invalidateQueries({ queryKey: ['sales-payments', +id!] })
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Error al anular'),
+  })
+
+  const downloadPdf = async () => {
+    try {
+      const res = await salesService.getPdf(+id!)
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a'); a.href = url; a.download = `factura-${existingInvoice?.fullNumber ?? id}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al descargar PDF') }
+  }
+
   const handleSave = () => {
     if (!selectedClient) return toast.error('Seleccione un cliente')
     if (items.length === 0) return toast.error('Agregue al menos un item')
     if (items.some(it => !it.productId)) return toast.error('Falta elegir producto en algún item')
     if (items.some(it => !it.stockLocationId)) return toast.error('Falta elegir locación de stock en algún item')
     saveMutation.mutate({
-      invoiceType, invoiceDate, clientId: selectedClient.id,
+      invoiceType: invoiceTypeCode, invoiceDate, clientId: selectedClient.id,
       sellerId: selectedSeller?.id, paymentConditionId: selectedPayment?.id,
       priceListId: selectedPriceList?.id,
       stockLocationId: items[0]?.stockLocationId,
@@ -176,6 +220,9 @@ export default function SalesInvoiceFormPage() {
         actions={
           <>
             <button className="btn-secondary" onClick={() => navigate('/sales')}><ArrowLeft className="w-4 h-4" /> Volver</button>
+            {isEdit && existingInvoice?.status !== 'draft' && (
+              <button className="btn-secondary" onClick={downloadPdf}><FileDown className="w-4 h-4" /> PDF</button>
+            )}
             {isEdit && existingInvoice?.status === 'draft' && (
               <button className="btn-primary" onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
                 <CheckCircle className="w-4 h-4" /> Confirmar
@@ -184,45 +231,41 @@ export default function SalesInvoiceFormPage() {
             {(!isEdit || existingInvoice?.status === 'draft') && (
               <button className="btn-primary" onClick={handleSave} disabled={saveMutation.isPending}><Save className="w-4 h-4" /> Guardar</button>
             )}
+            {isEdit && existingInvoice && existingInvoice.status !== 'cancelled' && existingInvoice.status !== 'draft' && (
+              <button className="btn-secondary text-red-600" onClick={() => { if (confirm('¿Anular esta factura? Se revertirán pagos y stock.')) cancelMutation.mutate() }} disabled={cancelMutation.isPending}>
+                <XCircle className="w-4 h-4" /> Anular
+              </button>
+            )}
           </>
         } />
 
       {/* Header */}
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="form-group">
-          <label className="label">Tipo</label>
-          <select className="input" value={invoiceType} onChange={e => setInvoiceType(e.target.value)}>
-            <option value="A">Factura A</option><option value="B">Factura B</option><option value="C">Factura C</option>
-          </select>
-        </div>
+        <SearchAutocomplete label="Tipo" required value={selectedInvoiceType}
+          onChange={setSelectedInvoiceType}
+          onSearch={async (t) => salesInvoiceTypes.filter((it: any) => it.name.toLowerCase().includes((t ?? '').toLowerCase()) || it.code.toLowerCase().includes((t ?? '').toLowerCase()))
+            .map((it: any) => ({ id: it.id, label: it.name, sublabel: it.code }))} />
         <div className="form-group">
           <label className="label">Fecha</label>
           <input type="date" className="input" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
         </div>
-        <div className="form-group">
-          <label className="label">Lista de Precios</label>
-          <select className="input" value={selectedPriceList?.id ?? ''}
-            onChange={e => {
-              const pl = (priceLists?.items ?? []).find((p: any) => p.id === +e.target.value)
-              setSelectedPriceList(pl ? { id: pl.id, label: pl.name } : null)
-            }}>
-            <option value="">— Sin lista —</option>
-            {(priceLists?.items ?? []).map((pl: any) => <option key={pl.id} value={pl.id}>{pl.name}</option>)}
-          </select>
-        </div>
+        <SearchAutocomplete label="Lista de Precios" value={selectedPriceList} onChange={setSelectedPriceList}
+          onSearch={async (t) => (priceLists?.items ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
         <div className="form-group col-span-2">
           <SearchAutocomplete label="Cliente *" value={selectedClient} onChange={setSelectedClient}
             onSearch={async (t) => {
-              const r = await clientsService.search(t)
-              return r.map((c: any) => ({ id: c.id, label: c.businessName, sublabel: c.cuit, defaultPriceListId: c.defaultPriceListId, defaultPriceListName: c.defaultPriceListName }))
+              const r = await clientsService.search(t ?? '')
+              return r.map((c: any) => ({ id: c.id, label: c.businessName, sublabel: c.cuit, defaultPriceListId: c.defaultPriceListId, defaultPriceListName: c.defaultPriceListName, assignedSellerId: c.assignedSellerId, assignedSellerName: c.assignedSellerName }))
             }} />
         </div>
-        <div className="form-group">
-          <label className="label">Cond. de Pago</label>
-          <SearchAutocomplete value={selectedPayment} onChange={setSelectedPayment}
-            onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes(t.toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
-        </div>
-        <div className="form-group col-span-2">
+        <SearchAutocomplete label="Vendedor" value={selectedSeller} onChange={setSelectedSeller}
+          onSearch={async (t) => {
+            const rs = await usersService.searchSellers(t ?? '')
+            return rs.map((u: any) => ({ id: u.id, label: `${u.firstName} ${u.lastName}`, sublabel: u.email }))
+          }} />
+        <SearchAutocomplete label="Cond. de Pago" value={selectedPayment} onChange={setSelectedPayment}
+          onSearch={async (t) => (paymentConditions ?? []).filter((p: any) => p.name.toLowerCase().includes((t ?? '').toLowerCase())).map((p: any) => ({ id: p.id, label: p.name }))} />
+        <div className="form-group col-span-3">
           <label className="label">Notas</label>
           <input className="input" value={notes} onChange={e => setNotes(e.target.value)} />
         </div>
@@ -243,7 +286,7 @@ export default function SalesInvoiceFormPage() {
                 <th>Cant.</th>
                 <th>Precio Unit.</th>
                 <th>Dto.%</th>
-                <th>IVA%</th>
+                <th>IVA</th>
                 <th>Subtotal</th>
                 <th className="w-10"></th>
               </tr>
@@ -262,32 +305,22 @@ export default function SalesInvoiceFormPage() {
                       <SearchAutocomplete value={item.productId ? { id: item.productId, label: item.productName } : null}
                         onChange={opt => { if (opt) onProductSelected(idx, opt) }}
                         onSearch={async (t) => {
-                          const r = await productsService.search(t)
+                          const r = await productsService.search(t ?? '')
                           return r.map((p: any) => ({ id: p.id, label: p.name, sublabel: `Stock: ${p.totalStock}`, stockByLocation: p.stockByLocation }))
                         }} />
                     </td>
                     <td className="min-w-[160px]">
-                      <select className="input w-40 text-xs" value={item.stockLocationId || ''}
-                        onChange={e => {
-                          const locId = +e.target.value
-                          const loc = locationList.find((l: any) => l.id === locId)
-                          updateItem(idx, { stockLocationId: locId, stockLocationName: loc?.name ?? '' })
-                        }}>
-                        <option value="">— Elegir —</option>
-                        {locationList.map((l: any) => (
-                          <option key={l.id} value={l.id}>
-                            {l.name}{item.productId && l.quantity !== undefined ? ` (${l.quantity})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchAutocomplete value={item.stockLocationId ? { id: item.stockLocationId, label: item.stockLocationName } : null}
+                        onChange={opt => { if (opt) updateItem(idx, { stockLocationId: opt.id, stockLocationName: opt.label }) }}
+                        onSearch={async (t) => locationList.filter((l: any) => l.name.toLowerCase().includes((t ?? '').toLowerCase())).map((l: any) => ({ id: l.id, label: l.name, sublabel: item.productId && l.quantity !== undefined ? `Stock: ${l.quantity}` : undefined }))} />
                     </td>
                     <td><input className="input w-20" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} /></td>
                     <td><input className="input w-28" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, { unitPrice: +e.target.value })} /></td>
                     <td><input className="input w-20" type="number" min="0" max="100" step="0.01" value={item.discountPercentage} onChange={e => updateItem(idx, { discountPercentage: +e.target.value })} /></td>
-                    <td>
-                      <select className="input w-20" value={item.vatRate} onChange={e => updateItem(idx, { vatRate: +e.target.value })}>
-                        {[0, 10.5, 21, 27].map(v => <option key={v} value={v}>{v}%</option>)}
-                      </select>
+                    <td className="min-w-[100px]">
+                      <SearchAutocomplete value={{ id: vatRateToId(item.vatRate), label: `${item.vatRate}%` }}
+                        onChange={opt => { if (opt) updateItem(idx, { vatRate: vatIdToRate(opt.id) }) }}
+                        onSearch={async () => VAT_OPTIONS} />
                     </td>
                     <td className="font-mono font-medium">$ {lineTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     <td><button className="text-red-500 hover:text-red-700" onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4" /></button></td>
@@ -309,7 +342,6 @@ export default function SalesInvoiceFormPage() {
         </div>
       </div>
 
-      {/* Payments (only when invoice exists) */}
       {isEdit && existingInvoice && (
         <PaymentsSection
           kind="sales"

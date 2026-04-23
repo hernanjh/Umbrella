@@ -59,6 +59,7 @@ export const salesService = {
   confirm: (id: number) => api.post(`/sales-invoices/${id}/confirm`),
   cancel: (id: number) => api.post(`/sales-invoices/${id}/cancel`),
   delete: (id: number) => api.delete(`/sales-invoices/${id}`),
+  getPdf: (id: number) => api.get(`/sales-invoices/${id}/pdf`, { responseType: 'blob' }),
 }
 
 export const purchasesService = {
@@ -101,6 +102,10 @@ export const paramsService = {
   getCategories: () => api.get('/params/categories').then(r => r.data.data),
   createCategory: (data: any) => api.post('/params/categories', data),
   updateCategory: (id: number, data: any) => api.put(`/params/categories/${id}`, data),
+  getInvoiceTypes: () => api.get('/params/invoice-types').then(r => r.data.data),
+  createInvoiceType: (data: any) => api.post('/params/invoice-types', data),
+  updateInvoiceType: (id: number, data: any) => api.put(`/params/invoice-types/${id}`, data),
+  deleteInvoiceType: (id: number) => api.delete(`/params/invoice-types/${id}`),
   getSystemConfig: () => api.get('/params/system-config').then(r => r.data.data),
   updateSystemConfig: (data: any) => api.put('/params/system-config', data),
 }
@@ -113,6 +118,7 @@ export const usersService = {
   delete: (id: number) => api.delete(`/users/${id}`),
   restore: (id: number) => api.post(`/users/${id}/restore`),
   resetPassword: (id: number, newPassword: string) => api.post(`/users/${id}/reset-password`, { newPassword }),
+  searchSellers: (term: string) => api.get('/users/sellers', { params: { term } }).then(r => r.data.data),
 }
 
 export const rolesService = {
@@ -144,6 +150,10 @@ export const purchasePaymentsService = {
 
 export const clientAccountService = {
   get: (clientId: number) => api.get(`/clients/${clientId}/account`).then(r => r.data.data),
+}
+
+export const supplierAccountService = {
+  get: (supplierId: number) => api.get(`/suppliers/${supplierId}/account`).then(r => r.data.data),
 }
 
 export const cashService = {
