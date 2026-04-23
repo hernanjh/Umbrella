@@ -262,6 +262,40 @@ public static class DbSeeder
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE PriceLists ADD COLUMN DefaultProfitPercentage decimal(18,4) NOT NULL DEFAULT 0");
         }
 
+        if (!await ColumnExistsAsync(context, "Products", "Brand"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Products ADD COLUMN Brand TEXT NULL");
+        }
+
+        if (!await ColumnExistsAsync(context, "Products", "Model"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Products ADD COLUMN Model TEXT NULL");
+        }
+
+        if (!await TableExistsAsync(context, "ProductPhotos"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE ProductPhotos (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    ProductId INTEGER NOT NULL,
+                    FileName TEXT NOT NULL DEFAULT '',
+                    Url TEXT NOT NULL DEFAULT '',
+                    FileSizeBytes INTEGER NOT NULL DEFAULT 0,
+                    IsDefault INTEGER NOT NULL DEFAULT 0,
+                    SortOrder INTEGER NOT NULL DEFAULT 0,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (ProductId) REFERENCES Products(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_ProductPhotos_ProductId ON ProductPhotos(ProductId)");
+        }
+
         if (!await TableExistsAsync(context, "ProductDocuments"))
         {
             await context.Database.ExecuteSqlRawAsync(@"

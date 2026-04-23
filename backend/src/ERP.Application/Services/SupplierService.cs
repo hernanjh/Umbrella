@@ -28,7 +28,7 @@ public class SupplierService : ISupplierService
         var items = await q.OrderBy(s => s.BusinessName)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(s => new SupplierListDto(s.Id, s.Code, s.BusinessName, s.TradeName, s.Cuit,
-                s.Email, s.Phone, s.City, s.IsActive,
+                s.Email, s.Phone, s.City, s.IsActive, s.IsDeleted,
                 s.VatCondition != null ? s.VatCondition.Name : null, s.CreatedAt))
             .ToListAsync();
         return new PagedResultDto<SupplierListDto>(items, total, query.Page, query.PageSize,

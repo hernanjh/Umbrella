@@ -10,6 +10,7 @@ public record ClientListDto(
     string? Phone,
     string? City,
     bool IsActive,
+    bool IsDeleted,
     string? ClientTypeName,
     string? ZoneName,
     string? SellerName,

@@ -26,8 +26,9 @@ public class ProductService : IProductService
         if (query.IncludeDeleted) q = q.IgnoreQueryFilters();
         var total = await q.CountAsync();
         var products = await q.OrderBy(p => p.Name).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
-        var items = products.Select(p => new ProductListDto(p.Id, p.Code, p.Name, p.Barcode, p.Category != null ? p.Category.Name : null,
-                p.Unit, p.IsActive, p.TrackStock, p.LastPurchasePrice, p.AveragePurchasePrice,
+        var items = products.Select(p => new ProductListDto(p.Id, p.Code, p.Name, p.Barcode, p.Brand, p.Model,
+                p.Category != null ? p.Category.Name : null,
+                p.Unit, p.IsActive, p.IsDeleted, p.TrackStock, p.LastPurchasePrice, p.AveragePurchasePrice,
                 p.StockEntries.Sum(s => s.Quantity), p.CreatedAt)).ToList();
         return new PagedResultDto<ProductListDto>(items, total, query.Page, query.PageSize, (int)Math.Ceiling(total / (double)query.PageSize));
     }
@@ -60,6 +61,7 @@ public class ProductService : IProductService
         var p = new Product
         {
             Code = dto.Code, Name = dto.Name, Description = dto.Description, Barcode = dto.Barcode,
+            Brand = dto.Brand, Model = dto.Model,
             Unit = dto.Unit, TrackStock = dto.TrackStock, MinimumStock = dto.MinimumStock,
             CategoryId = dto.CategoryId, CreatedBy = createdBy
         };
@@ -92,6 +94,7 @@ public class ProductService : IProductService
     {
         var p = await _db.Products.FindAsync(id) ?? throw new KeyNotFoundException();
         p.Name = dto.Name; p.Description = dto.Description; p.Barcode = dto.Barcode;
+        p.Brand = dto.Brand; p.Model = dto.Model;
         p.Unit = dto.Unit; p.IsActive = dto.IsActive; p.TrackStock = dto.TrackStock;
         p.MinimumStock = dto.MinimumStock; p.CategoryId = dto.CategoryId;
         p.ModifiedBy = modifiedBy; p.ModifiedAt = DateTime.UtcNow;
@@ -120,7 +123,7 @@ public class ProductService : IProductService
         => Task.FromResult($"/uploads/products/{productId}_{fileName}");
 
     private static ProductDetailDto MapToDetail(Product p) => new(
-        p.Id, p.Code, p.Name, p.Description, p.Barcode, p.PhotoUrl, p.Unit, p.IsActive, p.TrackStock,
+        p.Id, p.Code, p.Name, p.Description, p.Barcode, p.Brand, p.Model, p.PhotoUrl, p.Unit, p.IsActive, p.TrackStock,
         p.LastPurchasePrice, p.AveragePurchasePrice, p.PurchaseCount, p.MinimumStock,
         p.CategoryId, p.Category?.Name, p.CreatedAt, p.CreatedBy, p.ModifiedAt, p.ModifiedBy,
         p.StockEntries.Select(s => new ProductStockByLocationDto(s.StockLocationId, s.StockLocation.Name, s.Quantity)));

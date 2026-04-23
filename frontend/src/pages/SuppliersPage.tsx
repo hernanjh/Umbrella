@@ -51,7 +51,7 @@ export default function SuppliersPage() {
     { key: 'email', header: 'Email' },
     { key: 'phone', header: 'Teléfono' },
     { key: 'vatConditionName', header: 'Cond. IVA' },
-    { key: 'isActive', header: 'Estado', render: r => <Badge variant={r.isActive ? 'green' : 'red'}>{r.isActive ? 'Activo' : 'Inactivo'}</Badge> },
+    { key: 'isActive', header: 'Estado', render: r => r.isDeleted ? <Badge variant="red">Eliminado</Badge> : <Badge variant={r.isActive ? 'green' : 'red'}>{r.isActive ? 'Activo' : 'Inactivo'}</Badge> },
   ]
 
   const handleSubmit = (e: React.FormEvent) => {

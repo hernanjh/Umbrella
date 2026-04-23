@@ -112,7 +112,7 @@ export default function ClientsPage() {
     { key: 'phone', header: 'Teléfono', width: '120px' },
     { key: 'clientTypeName', header: 'Tipo' },
     { key: 'zoneName', header: 'Zona' },
-    { key: 'isActive', header: 'Estado', render: (r) => <Badge variant={r.isActive ? 'green' : 'red'}>{r.isActive ? 'Activo' : 'Inactivo'}</Badge> },
+    { key: 'isActive', header: 'Estado', render: (r) => r.isDeleted ? <Badge variant="red">Eliminado</Badge> : <Badge variant={r.isActive ? 'green' : 'red'}>{r.isActive ? 'Activo' : 'Inactivo'}</Badge> },
   ]
 
   return (

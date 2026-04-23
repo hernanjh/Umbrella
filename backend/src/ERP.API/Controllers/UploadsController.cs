@@ -23,18 +23,90 @@ public class UploadsController : BaseController
 
     // ---------- Products ----------
 
-    [HttpPost("api/products/{id}/photo")]
+    [HttpGet("api/products/{id}/photos")]
+    public async Task<IActionResult> GetProductPhotos(int id)
+        => Ok(new { success = true, data = await _db.ProductPhotos
+            .Where(ph => ph.ProductId == id)
+            .OrderByDescending(ph => ph.IsDefault).ThenBy(ph => ph.SortOrder).ThenBy(ph => ph.Id)
+            .Select(ph => new { ph.Id, ph.FileName, ph.Url, ph.IsDefault, ph.FileSizeBytes, ph.CreatedAt })
+            .ToListAsync() });
+
+    [HttpPost("api/products/{id}/photos")]
     public async Task<IActionResult> UploadProductPhoto(int id, IFormFile file)
     {
         var product = await _db.Products.FindAsync(id) ?? throw new KeyNotFoundException();
         Validate(file, AllowedImage);
-        var url = await SaveFileAsync(file, $"products/{id}");
-        product.PhotoUrl = url;
-        product.ModifiedBy = CurrentUserEmail;
-        product.ModifiedAt = DateTime.UtcNow;
-        _db.Products.Update(product);
+        var url = await SaveFileAsync(file, $"products/{id}/photos");
+
+        var existing = await _db.ProductPhotos.Where(ph => ph.ProductId == id).ToListAsync();
+        var makeDefault = !existing.Any(ph => ph.IsDefault);
+
+        var photo = new ProductPhoto
+        {
+            ProductId = id,
+            FileName = file.FileName,
+            Url = url,
+            FileSizeBytes = file.Length,
+            IsDefault = makeDefault,
+            SortOrder = existing.Count,
+            Code = Guid.NewGuid().ToString("N")[..8].ToUpper(),
+            CreatedBy = CurrentUserEmail,
+        };
+        _db.ProductPhotos.Add(photo);
+        if (makeDefault)
+        {
+            product.PhotoUrl = url;
+            product.ModifiedBy = CurrentUserEmail;
+            product.ModifiedAt = DateTime.UtcNow;
+            _db.Products.Update(product);
+        }
         await _uow.SaveChangesAsync();
-        return Ok(new { success = true, data = new { photoUrl = url } });
+        return Ok(new { success = true, data = new { photo.Id, photo.Url, photo.FileName, photo.IsDefault } });
+    }
+
+    [HttpDelete("api/products/{id}/photos/{photoId}")]
+    public async Task<IActionResult> DeleteProductPhoto(int id, int photoId)
+    {
+        var photo = await _db.ProductPhotos.FirstOrDefaultAsync(p => p.Id == photoId && p.ProductId == id)
+            ?? throw new KeyNotFoundException();
+        photo.IsDeleted = true;
+        photo.DeletedBy = CurrentUserEmail;
+        photo.DeletedAt = DateTime.UtcNow;
+        _db.ProductPhotos.Update(photo);
+        await _db.SaveChangesAsync();
+
+        if (photo.IsDefault)
+        {
+            var next = await _db.ProductPhotos.Where(p => p.ProductId == id && !p.IsDeleted)
+                .OrderBy(p => p.SortOrder).ThenBy(p => p.Id).FirstOrDefaultAsync();
+            var product = await _db.Products.FindAsync(id);
+            if (next != null)
+            {
+                next.IsDefault = true;
+                _db.ProductPhotos.Update(next);
+                if (product != null) { product.PhotoUrl = next.Url; _db.Products.Update(product); }
+            }
+            else if (product != null)
+            {
+                product.PhotoUrl = null;
+                _db.Products.Update(product);
+            }
+        }
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpPost("api/products/{id}/photos/{photoId}/default")]
+    public async Task<IActionResult> SetDefaultProductPhoto(int id, int photoId)
+    {
+        var photos = await _db.ProductPhotos.Where(p => p.ProductId == id).ToListAsync();
+        var target = photos.FirstOrDefault(p => p.Id == photoId) ?? throw new KeyNotFoundException();
+        foreach (var p in photos) p.IsDefault = (p.Id == photoId);
+        _db.ProductPhotos.UpdateRange(photos);
+        var product = await _db.Products.FindAsync(id);
+        if (product != null) { product.PhotoUrl = target.Url; _db.Products.Update(product); }
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
     }
 
     [HttpGet("api/products/{id}/documents")]

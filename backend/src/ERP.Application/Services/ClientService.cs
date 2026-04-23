@@ -28,7 +28,8 @@ public class ClientService : IClientService
         var total = await q.CountAsync();
         var items = await q.OrderBy(c => c.BusinessName).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(c => new ClientListDto(c.Id, c.Code, c.BusinessName, c.TradeName, c.Cuit, c.Email, c.Phone, c.City,
-                c.IsActive, c.ClientType != null ? c.ClientType.Name : null,
+                c.IsActive, c.IsDeleted,
+                c.ClientType != null ? c.ClientType.Name : null,
                 c.Zone != null ? c.Zone.Name : null,
                 c.AssignedSeller != null ? c.AssignedSeller.FirstName + " " + c.AssignedSeller.LastName : null,
                 c.CurrentBalance, c.CreatedAt))

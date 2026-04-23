@@ -41,6 +41,7 @@ public class AppDbContext : DbContext
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
     public DbSet<InvoiceType> InvoiceTypes => Set<InvoiceType>();
     public DbSet<ProductDocument> ProductDocuments => Set<ProductDocument>();
+    public DbSet<ProductPhoto> ProductPhotos => Set<ProductPhoto>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -94,5 +95,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CashMovement>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<InvoiceType>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<ProductDocument>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<ProductPhoto>().HasQueryFilter(e => !e.IsDeleted);
     }
 }

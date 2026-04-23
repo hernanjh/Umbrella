@@ -10,6 +10,7 @@ public record SupplierListDto(
     string? Phone,
     string? City,
     bool IsActive,
+    bool IsDeleted,
     string? VatConditionName,
     DateTime CreatedAt
 );
