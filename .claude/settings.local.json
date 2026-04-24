@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(dotnet run *)",
+      "Bash(powershell *)",
+      "Bash(curl *)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(npm list *)",
+      "Bash(npm root *)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
