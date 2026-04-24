@@ -1,3 +1,4 @@
+using ERP.API.Attributes;
 using ERP.Application.DTOs.Common;
 using ERP.Application.DTOs.Products;
 using ERP.Application.Interfaces;
@@ -14,18 +15,22 @@ public class ProductsController : BaseController
     public ProductsController(IProductService service) { _service = service; }
 
     [HttpGet]
+    [RequirePermission("products", "read")]
     public async Task<IActionResult> GetAll([FromQuery] QueryParamsDto query)
         => Ok(new { success = true, data = await _service.GetAllAsync(query) });
 
     [HttpGet("search")]
+    [RequirePermission("products", "read")]
     public async Task<IActionResult> Search([FromQuery] string term)
         => Ok(new { success = true, data = await _service.SearchAsync(term) });
 
     [HttpGet("{id}")]
+    [RequirePermission("products", "read")]
     public async Task<IActionResult> GetById(int id)
         => Ok(new { success = true, data = await _service.GetByIdAsync(id) });
 
     [HttpPost]
+    [RequirePermission("products", "write")]
     public async Task<IActionResult> Create([FromBody] CreateProductDto dto)
     {
         var result = await _service.CreateAsync(dto, CurrentUserEmail);
@@ -33,10 +38,12 @@ public class ProductsController : BaseController
     }
 
     [HttpPut("{id}")]
+    [RequirePermission("products", "write")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductDto dto)
         => Ok(new { success = true, data = await _service.UpdateAsync(id, dto, CurrentUserEmail) });
 
     [HttpDelete("{id}")]
+    [RequirePermission("products", "delete")]
     public async Task<IActionResult> Delete(int id)
     {
         await _service.SoftDeleteAsync(id, CurrentUserEmail);
@@ -44,6 +51,7 @@ public class ProductsController : BaseController
     }
 
     [HttpPost("{id}/restore")]
+    [RequirePermission("products", "write")]
     public async Task<IActionResult> Restore(int id)
     {
         await _service.RestoreAsync(id, CurrentUserEmail);

@@ -36,7 +36,8 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Credenciales inválidas.");
 
-        var (accessToken, expiresAt) = GenerateAccessToken(user);
+        var profile = await BuildProfileAsync(user);
+        var (accessToken, expiresAt) = GenerateAccessToken(user, profile);
         var refreshToken = GenerateRefreshToken();
 
         user.RefreshToken = refreshToken;
@@ -45,7 +46,7 @@ public class AuthService : IAuthService
         _db.Users.Update(user);
         await _uow.SaveChangesAsync();
 
-        return new LoginResponseDto(accessToken, refreshToken, expiresAt, await BuildProfileAsync(user));
+        return new LoginResponseDto(accessToken, refreshToken, expiresAt, profile);
     }
 
     public async Task<LoginResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
@@ -57,14 +58,15 @@ public class AuthService : IAuthService
         if (user.RefreshTokenExpiry < DateTime.UtcNow)
             throw new UnauthorizedAccessException("Token expirado.");
 
-        var (accessToken, expiresAt) = GenerateAccessToken(user);
+        var profile = await BuildProfileAsync(user);
+        var (accessToken, expiresAt) = GenerateAccessToken(user, profile);
         var refreshToken = GenerateRefreshToken();
         user.RefreshToken = refreshToken;
         user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
         _db.Users.Update(user);
         await _uow.SaveChangesAsync();
 
-        return new LoginResponseDto(accessToken, refreshToken, expiresAt, await BuildProfileAsync(user));
+        return new LoginResponseDto(accessToken, refreshToken, expiresAt, profile);
     }
 
     public async Task LogoutAsync(int userId)
@@ -113,20 +115,25 @@ public class AuthService : IAuthService
     public Task<string> UploadProfilePhotoAsync(int userId, Stream photoStream, string fileName)
         => Task.FromResult($"/uploads/profiles/{userId}_{fileName}");
 
-    private (string token, DateTime expiresAt) GenerateAccessToken(User user)
+    private (string token, DateTime expiresAt) GenerateAccessToken(User user, UserProfileDto profile)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             _config["Jwt:Secret"] ?? "ERP_SECRET_KEY_CHANGE_IN_PRODUCTION_32CH"));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiresAt = DateTime.UtcNow.AddHours(8);
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("firstName", user.FirstName),
-            new Claim("lastName", user.LastName),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new("firstName", user.FirstName),
+            new("lastName", user.LastName),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("isSeller", profile.IsSeller ? "1" : "0"),
         };
+        if (profile.ZoneId.HasValue) claims.Add(new Claim("zoneId", profile.ZoneId.Value.ToString()));
+        foreach (var r in profile.Roles) claims.Add(new Claim(ClaimTypes.Role, r));
+        foreach (var p in profile.Permissions) claims.Add(new Claim("perm", p));
+
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"] ?? "ERP",
             audience: _config["Jwt:Audience"] ?? "ERP",
@@ -156,13 +163,33 @@ public class AuthService : IAuthService
             .Where(rp => roleIds.Contains(rp.RoleId))
             .ToListAsync();
 
-        var roles = userRoles.Select(ur => ur.Role.Name);
-        var permissions = rolePerms
-            .Where(rp => rp.Permission != null)
-            .Select(rp => $"{rp.Permission!.Module}:{rp.Permission.Action}")
-            .Distinct();
+        var roles = userRoles.Select(ur => ur.Role.Name).ToList();
+        var isSeller = userRoles.Any(ur => ur.Role.IsSeller);
+        var isAdmin = roles.Contains("Administrador");
+
+        // Emit granular permissions: "module:read", "module:write", "module:delete".
+        // Admins get '*:write' + '*:delete' wildcard so frontend treats them as superuser.
+        var permissions = new HashSet<string>();
+        foreach (var rp in rolePerms.Where(rp => rp.Permission != null))
+        {
+            var mod = rp.Permission!.Module;
+            if (rp.CanRead) permissions.Add($"{mod}:read");
+            if (rp.CanWrite) permissions.Add($"{mod}:write");
+            if (rp.CanDelete) permissions.Add($"{mod}:delete");
+        }
+        if (isAdmin)
+        {
+            permissions.Add("*:read");
+            permissions.Add("*:write");
+            permissions.Add("*:delete");
+        }
+
+        string? zoneName = null;
+        if (user.ZoneId.HasValue)
+            zoneName = await _db.Zones.Where(z => z.Id == user.ZoneId).Select(z => z.Name).FirstOrDefaultAsync();
 
         return new UserProfileDto(user.Id, user.Code, user.FirstName, user.LastName,
-            user.Email, user.ProfilePhotoUrl, user.Theme, user.Phone, roles, permissions);
+            user.Email, user.ProfilePhotoUrl, user.Theme, user.Phone, roles, permissions,
+            user.ZoneId, zoneName, isSeller);
     }
 }

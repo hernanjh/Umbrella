@@ -1,3 +1,4 @@
+using ERP.API.Attributes;
 using ERP.Application.DTOs.Stock;
 using ERP.Application.DTOs.Common;
 using ERP.Application.Interfaces;
@@ -14,22 +15,27 @@ public class StockController : BaseController
     public StockController(IStockService service) { _service = service; }
 
     [HttpGet]
+    [RequirePermission("stock", "read")]
     public async Task<IActionResult> GetStatus([FromQuery] int? locationId, [FromQuery] int? categoryId)
         => Ok(new { success = true, data = await _service.GetStockStatusAsync(locationId, categoryId) });
 
     [HttpGet("products/{productId}")]
+    [RequirePermission("stock", "read")]
     public async Task<IActionResult> GetProductStock(int productId)
         => Ok(new { success = true, data = await _service.GetProductStockAsync(productId) });
 
     [HttpGet("movements")]
+    [RequirePermission("stock", "read")]
     public async Task<IActionResult> GetMovements([FromQuery] QueryParamsDto query, [FromQuery] int? productId, [FromQuery] int? locationId)
         => Ok(new { success = true, data = await _service.GetMovementsAsync(query, productId, locationId) });
 
     [HttpGet("adjustments")]
+    [RequirePermission("stock", "read")]
     public async Task<IActionResult> GetAdjustments([FromQuery] QueryParamsDto query)
         => Ok(new { success = true, data = await _service.GetAdjustmentsAsync(query) });
 
     [HttpPost("adjustments")]
+    [RequirePermission("stock", "write")]
     public async Task<IActionResult> CreateAdjustment([FromBody] CreateStockAdjustmentDto dto)
     {
         var id = await _service.CreateAdjustmentAsync(dto, CurrentUserEmail);
@@ -37,6 +43,7 @@ public class StockController : BaseController
     }
 
     [HttpPost("adjustments/{id}/confirm")]
+    [RequirePermission("stock", "write")]
     public async Task<IActionResult> ConfirmAdjustment(int id)
     {
         await _service.ConfirmAdjustmentAsync(id, CurrentUserEmail);
@@ -48,14 +55,17 @@ public class StockController : BaseController
         => Ok(new { success = true, data = await _service.GetLocationsAsync() });
 
     [HttpPost("locations")]
+    [RequirePermission("params", "write")]
     public async Task<IActionResult> CreateLocation([FromBody] CreateStockLocationDto dto)
         => Ok(new { success = true, data = await _service.CreateLocationAsync(dto, CurrentUserEmail) });
 
     [HttpPut("locations/{id}")]
+    [RequirePermission("params", "write")]
     public async Task<IActionResult> UpdateLocation(int id, [FromBody] UpdateStockLocationDto dto)
         => Ok(new { success = true, data = await _service.UpdateLocationAsync(id, dto, CurrentUserEmail) });
 
     [HttpDelete("locations/{id}")]
+    [RequirePermission("params", "delete")]
     public async Task<IActionResult> DeleteLocation(int id)
     {
         await _service.DeleteLocationAsync(id, CurrentUserEmail);

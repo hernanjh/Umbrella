@@ -1,3 +1,4 @@
+using ERP.API.Attributes;
 using ERP.Application.DTOs.Common;
 using ERP.Application.DTOs.Invoices;
 using ERP.Application.Interfaces;
@@ -16,6 +17,7 @@ public class PurchaseInvoicesController : BaseController
     public PurchaseInvoicesController(IPurchaseInvoiceService service, IInvoicePdfService pdf) { _service = service; _pdf = pdf; }
 
     [HttpGet("{id}/pdf")]
+    [RequirePermission("purchases", "read")]
     public async Task<IActionResult> GetPdf(int id)
     {
         var bytes = await _pdf.GeneratePurchaseInvoicePdfAsync(id);
@@ -23,14 +25,17 @@ public class PurchaseInvoicesController : BaseController
     }
 
     [HttpGet]
+    [RequirePermission("purchases", "read")]
     public async Task<IActionResult> GetAll([FromQuery] QueryParamsDto query)
         => Ok(new { success = true, data = await _service.GetAllAsync(query) });
 
     [HttpGet("{id}")]
+    [RequirePermission("purchases", "read")]
     public async Task<IActionResult> GetById(int id)
         => Ok(new { success = true, data = await _service.GetByIdAsync(id) });
 
     [HttpPost]
+    [RequirePermission("purchases", "write")]
     public async Task<IActionResult> Create([FromBody] CreatePurchaseInvoiceDto dto)
     {
         var result = await _service.CreateAsync(dto, CurrentUserEmail);
@@ -38,10 +43,12 @@ public class PurchaseInvoicesController : BaseController
     }
 
     [HttpPut("{id}")]
+    [RequirePermission("purchases", "write")]
     public async Task<IActionResult> Update(int id, [FromBody] CreatePurchaseInvoiceDto dto)
         => Ok(new { success = true, data = await _service.UpdateAsync(id, dto, CurrentUserEmail) });
 
     [HttpPost("{id}/confirm")]
+    [RequirePermission("purchases", "write")]
     public async Task<IActionResult> Confirm(int id)
     {
         await _service.ConfirmAsync(id, CurrentUserEmail);
@@ -49,6 +56,7 @@ public class PurchaseInvoicesController : BaseController
     }
 
     [HttpPost("{id}/cancel")]
+    [RequirePermission("purchases", "delete")]
     public async Task<IActionResult> Cancel(int id)
     {
         await _service.CancelAsync(id, CurrentUserEmail);
@@ -56,6 +64,7 @@ public class PurchaseInvoicesController : BaseController
     }
 
     [HttpDelete("{id}")]
+    [RequirePermission("purchases", "delete")]
     public async Task<IActionResult> Delete(int id)
     {
         await _service.SoftDeleteAsync(id, CurrentUserEmail);

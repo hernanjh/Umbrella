@@ -54,6 +54,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserRole>().HasKey(ur => new { ur.UserId, ur.RoleId });
         modelBuilder.Entity<RolePermission>().HasKey(rp => new { rp.RoleId, rp.PermissionId });
 
+        // User.Zone and Zone.DefaultSeller are two independent relationships, not a reciprocal one.
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Zone)
+            .WithMany()
+            .HasForeignKey(u => u.ZoneId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Zone>()
+            .HasOne(z => z.DefaultSeller)
+            .WithMany()
+            .HasForeignKey(z => z.DefaultSellerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Unique indexes
         modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(p => p.Barcode).IsUnique().HasFilter("Barcode IS NOT NULL");

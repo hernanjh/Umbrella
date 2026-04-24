@@ -14,6 +14,9 @@ public class User : BaseEntity
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
 
+    public int? ZoneId { get; set; }
+    public Zone? Zone { get; set; }
+
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

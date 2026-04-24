@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
-import { Download, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard, CalendarDays } from 'lucide-react'
+import { Download, FileDown, Printer, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard, CalendarDays, ListChecks } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
 import toast from 'react-hot-toast'
 
-type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'stock' | 'payments' | 'cash' | 'receivables' | 'payables' | 'overdue-installments'
+type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'detailed-sales' | 'stock' | 'payments' | 'cash' | 'receivables' | 'payables' | 'overdue-installments'
 
 export default function ReportsPage() {
   const [active, setActive] = useState<ReportType>('sales-by-period')
@@ -21,6 +21,7 @@ export default function ReportsPage() {
       if (active === 'sales-by-period') return reportsService.salesByPeriod(params)
       if (active === 'sales-by-seller') return reportsService.salesBySeller(params)
       if (active === 'sales-by-client') return reportsService.salesByClient(params)
+      if (active === 'detailed-sales') return reportsService.detailedSales(params)
       if (active === 'payments') return reportsService.payments(params)
       if (active === 'cash') return reportsService.cash(params)
       if (active === 'receivables') return reportsService.receivables()
@@ -42,10 +43,22 @@ export default function ReportsPage() {
     } catch { toast.error('Error al exportar') }
   }
 
+  const handlePdfExport = async () => {
+    try {
+      const res = await reportsService.exportPdf(active, { dateFrom, dateTo })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a'); a.href = url; a.download = `${active}-${format(new Date(), 'yyyyMMdd')}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+    } catch { toast.error('Error al exportar PDF') }
+  }
+
+  const handlePrint = () => window.print()
+
   const TABS = [
     { key: 'sales-by-period' as const, label: 'Ventas por Período', icon: <BarChart2 className="w-4 h-4" /> },
     { key: 'sales-by-seller' as const, label: 'Ventas por Vendedor', icon: <Users className="w-4 h-4" /> },
     { key: 'sales-by-client' as const, label: 'Ventas por Cliente', icon: <FileText className="w-4 h-4" /> },
+    { key: 'detailed-sales' as const, label: 'Ventas Detalladas', icon: <ListChecks className="w-4 h-4" /> },
     { key: 'stock' as const, label: 'Estado de Stock', icon: <Package className="w-4 h-4" /> },
     { key: 'payments' as const, label: 'Pagos', icon: <Banknote className="w-4 h-4" /> },
     { key: 'cash' as const, label: 'Caja', icon: <Wallet className="w-4 h-4" /> },
@@ -58,17 +71,23 @@ export default function ReportsPage() {
     <div className="space-y-5">
       <PageHeader title="Reportes"
         actions={
-          <button className="btn-secondary" onClick={handleExcelExport}><Download className="w-4 h-4" /> Exportar Excel</button>
+          <div className="flex gap-2 no-print">
+            <button className="btn-secondary" onClick={handleExcelExport} title="Exportar a Excel"><Download className="w-4 h-4" /> Excel</button>
+            <button className="btn-secondary" onClick={handlePdfExport} title="Exportar a PDF"><FileDown className="w-4 h-4" /> PDF</button>
+            <button className="btn-secondary" onClick={handlePrint} title="Imprimir con gráficos"><Printer className="w-4 h-4" /> Imprimir</button>
+          </div>
         } />
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl w-fit">
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setActive(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${ active === t.key ? 'bg-white dark:bg-gray-700 shadow text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white' }`}>
-            {t.icon}{t.label}
-          </button>
-        ))}
+      {/* Tabs - wrapping grid to avoid horizontal overflow */}
+      <div className="card p-2 no-print">
+        <div className="flex flex-wrap gap-1">
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => setActive(t.key)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${ active === t.key ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }`}>
+              {t.icon}<span className="hidden sm:inline">{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Filters */}
@@ -128,6 +147,61 @@ export default function ReportsPage() {
           <table className="table"><thead><tr><th>Cliente</th><th>CUIT</th><th>Facturas</th><th>Total</th><th>Saldo</th></tr></thead>
             <tbody>{(data.clients ?? []).map((c: any) => <tr key={c.clientId}><td>{c.clientName}</td><td>{c.cuit}</td><td>{c.invoiceCount}</td><td>$ {c.totalAmount?.toLocaleString()}</td><td className={c.balanceDue > 0 ? 'text-red-600 font-semibold' : ''}>$ {c.balanceDue?.toLocaleString()}</td></tr>)}</tbody>
           </table>
+        )}
+
+        {!isLoading && active === 'detailed-sales' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-xl font-bold text-blue-700">{data.invoiceCount}</p>
+                <p className="text-xs text-gray-500 mt-1">Facturas</p>
+              </div>
+              <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                <p className="text-xl font-bold text-indigo-700">{data.itemCount}</p>
+                <p className="text-xs text-gray-500 mt-1">Ítems</p>
+              </div>
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
+                <p className="text-xl font-bold text-green-700">{fmt(data.totalAmount)}</p>
+                <p className="text-xs text-gray-500 mt-1">Total facturado</p>
+              </div>
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                <p className="text-xl font-bold text-amber-700">{fmt(data.totalBalanceDue)}</p>
+                <p className="text-xs text-gray-500 mt-1">Saldo pendiente</p>
+              </div>
+            </div>
+            <div className="table-container">
+              <table className="table text-xs">
+                <thead>
+                  <tr>
+                    <th>Fecha</th><th>Factura</th><th>Cliente</th><th>Zona</th><th>Vendedor</th>
+                    <th>Producto</th><th>Marca</th><th className="text-right">Cant.</th>
+                    <th className="text-right">P. unit.</th><th className="text-right">Total</th>
+                    <th>Cuotas</th><th>Vencidas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.items ?? []).map((it: any, idx: number) => (
+                    <tr key={idx}>
+                      <td>{format(new Date(it.invoiceDate), 'dd/MM/yy')}</td>
+                      <td className="font-mono">{it.invoiceFullNumber}</td>
+                      <td>{it.clientName}</td>
+                      <td>{it.zoneName ?? '—'}</td>
+                      <td>{it.sellerName ?? '—'}</td>
+                      <td>{it.productName}</td>
+                      <td className="text-gray-500">{it.brand ?? '—'}</td>
+                      <td className="text-right font-mono">{it.quantity} {it.unit}</td>
+                      <td className="text-right font-mono">{fmt(it.unitPrice)}</td>
+                      <td className="text-right font-mono font-semibold">{fmt(it.lineTotal)}</td>
+                      <td>{it.hasInstallmentPlan ? <span className="badge-blue">{it.numberOfInstallments} ({it.installmentFrequency})</span> : <span className="text-gray-400">—</span>}</td>
+                      <td>{(it.overdueInstallmentCount ?? 0) > 0
+                        ? <span className="text-red-600 font-semibold">{it.overdueInstallmentCount} · {fmt(it.overdueInstallmentAmount)}</span>
+                        : <span className="text-gray-400">—</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
 
         {!isLoading && active === 'stock' && data && (

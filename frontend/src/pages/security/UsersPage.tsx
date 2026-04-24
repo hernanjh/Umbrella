@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersService, rolesService } from '../../services'
+import { usersService, rolesService, paramsService } from '../../services'
 import DataGrid, { Column } from '../../components/ui/DataGrid'
 import PageHeader from '../../components/ui/PageHeader'
 import Modal from '../../components/ui/Modal'
@@ -19,6 +19,7 @@ export default function UsersPage() {
     queryKey: ['users'], queryFn: () => usersService.getAll({ page: 1, pageSize: 200 })
   })
   const { data: roles } = useQuery({ queryKey: ['roles'], queryFn: rolesService.getAll })
+  const { data: zones } = useQuery({ queryKey: ['zones'], queryFn: paramsService.getZones })
 
   const saveMutation = useMutation({
     mutationFn: (data: any) => modal.data?.id
@@ -57,9 +58,12 @@ export default function UsersPage() {
   }
 
   const openEdit = (row: any) => {
-    setForm(row)
-    setSelectedRoles(row.roles?.map((r: any) => r.roleId ?? r.id) ?? [])
-    setModal({ open: true, data: row, mode: 'edit' })
+    // Full details (not the list DTO) when available
+    usersService.getById(row.id).then((full: any) => {
+      setForm(full)
+      setSelectedRoles(full.roles?.map((r: any) => r.roleId ?? r.id) ?? [])
+      setModal({ open: true, data: full, mode: 'edit' })
+    })
   }
 
   const openResetPassword = (row: any) => {
@@ -78,6 +82,7 @@ export default function UsersPage() {
       firstName: form.firstName, lastName: form.lastName,
       phone: form.phone, isActive: form.isActive !== false,
       roleIds: selectedRoles,
+      zoneId: form.zoneId ? +form.zoneId : null,
     }
     if (modal.mode === 'new') {
       payload.email = form.email
@@ -190,6 +195,15 @@ export default function UsersPage() {
               <label className="label">Teléfono</label>
               <input className="input" value={form.phone ?? ''}
                 onChange={e => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label className="label">Zona asignada</label>
+              <select className="input" value={form.zoneId ?? ''}
+                onChange={e => setForm((f: any) => ({ ...f, zoneId: e.target.value || null }))}>
+                <option value="">Sin zona</option>
+                {(zones ?? []).map((z: any) => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Si el rol es de vendedor, sólo verá datos de esta zona.</p>
             </div>
             <div className="form-group flex items-center gap-2 mt-6">
               <input type="checkbox" id="isActive" checked={form.isActive !== false}

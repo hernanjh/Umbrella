@@ -170,3 +170,101 @@ public record DashboardSummaryDto(
     int OverdueInstallmentCount,
     decimal OverdueInstallmentAmount
 );
+
+public record DailyCollectionInstallmentLineDto(
+    int InstallmentId,
+    int PlanId,
+    string PlanCode,
+    int InvoiceId,
+    string InvoiceFullNumber,
+    int SequenceNumber,
+    DateTime DueDate,
+    decimal Amount,
+    decimal PaidAmount,
+    decimal BalanceDue,
+    int DaysOverdue
+);
+
+public record DailyCollectionInvoiceLineDto(
+    int InvoiceId,
+    string FullNumber,
+    DateTime InvoiceDate,
+    DateTime DueDate,
+    decimal Total,
+    decimal BalanceDue,
+    int DaysOverdue
+);
+
+public record DailyCollectionClientDto(
+    int ClientId,
+    string ClientCode,
+    string BusinessName,
+    string? Phone,
+    string? Mobile,
+    string? Address,
+    string? City,
+    string? Cuit,
+    int? ZoneId,
+    string? ZoneName,
+    string? AssignedSellerName,
+    decimal CurrentBalance,
+    IEnumerable<DailyCollectionInstallmentLineDto> OverdueInstallments,
+    IEnumerable<DailyCollectionInstallmentLineDto> UpcomingInstallments,
+    IEnumerable<DailyCollectionInvoiceLineDto> UnpaidInvoices,
+    decimal TotalToCollect,
+    decimal OverdueAmount,
+    decimal UpcomingAmount
+);
+
+public record DailyCollectionsReportDto(
+    DateTime Date,
+    int? ZoneId,
+    string? ZoneName,
+    int ClientCount,
+    decimal TotalToCollect,
+    decimal TotalOverdue,
+    decimal TotalUpcoming,
+    IEnumerable<DailyCollectionClientDto> Clients
+);
+
+public record DetailedSalesItemDto(
+    DateTime InvoiceDate,
+    string InvoiceFullNumber,
+    string InvoiceType,
+    string Status,
+    int ClientId,
+    string ClientCode,
+    string ClientName,
+    string? ClientCuit,
+    string? ZoneName,
+    string? SellerName,
+    string? PaymentConditionName,
+    string ProductCode,
+    string ProductName,
+    string? CategoryName,
+    string? Brand,
+    decimal Quantity,
+    string Unit,
+    decimal UnitPrice,
+    decimal DiscountAmount,
+    decimal LineSubtotal,
+    decimal LineVat,
+    decimal LineTotal,
+    decimal InvoiceTotal,
+    decimal InvoiceBalanceDue,
+    bool HasInstallmentPlan,
+    int? NumberOfInstallments,
+    string? InstallmentFrequency,
+    int? OverdueInstallmentCount,
+    decimal? OverdueInstallmentAmount
+);
+
+public record DetailedSalesReportDto(
+    DateTime DateFrom,
+    DateTime DateTo,
+    int ItemCount,
+    int InvoiceCount,
+    decimal TotalAmount,
+    decimal TotalBalanceDue,
+    IEnumerable<DetailedSalesItemDto> Items
+);

@@ -10,10 +10,12 @@ import { Plus, Edit2, Trash2, RotateCcw, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
 import { useNavigate } from 'react-router-dom'
+import { useCanAccess } from '../hooks/useCanAccess'
 
 export default function ClientsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const can = useCanAccess('clients')
   const [modal, setModal] = useState<{ open: boolean; data?: any }>({ open: false })
   const [form, setForm] = useState<any>({})
   const [selectedClientType, setSelectedClientType] = useState<any>(null)
@@ -118,7 +120,7 @@ export default function ClientsPage() {
   return (
     <div>
       <PageHeader title="Clientes" subtitle={`${clients?.totalCount ?? 0} registros`}
-        actions={<button className="btn-primary" onClick={openNew}><Plus className="w-4 h-4" /> Nuevo Cliente</button>} />
+        actions={can.write && <button className="btn-primary" onClick={openNew}><Plus className="w-4 h-4" /> Nuevo Cliente</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={clients?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="clientes"
           rowClassName={(r: any) => r.isDeleted ? 'opacity-60' : ''}
@@ -131,11 +133,9 @@ export default function ClientsPage() {
           actions={(row: any) => (
             <>
               {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => navigate(`/clients/${row.id}/account`)} title="Cuenta corriente"><Wallet className="w-3.5 h-3.5" /></button>}
-              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => openEdit(row)} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
-              {!row.isDeleted
-                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>
-              }
+              {!row.isDeleted && can.write && <button className="btn-ghost btn-sm p-1" onClick={() => openEdit(row)} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
+              {!row.isDeleted && can.delete && <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {row.isDeleted && can.write && <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
             </>
           )}
         />

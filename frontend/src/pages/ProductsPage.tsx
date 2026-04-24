@@ -11,11 +11,13 @@ import Badge from '../components/ui/Badge'
 import DocumentsSection from '../components/uploads/DocumentsSection'
 import ProductPhotosSection from '../components/uploads/ProductPhotosSection'
 import ProductPhotosLightbox from '../components/uploads/ProductPhotosLightbox'
+import { useCanAccess } from '../hooks/useCanAccess'
 
 const UNITS = ['un', 'kg', 'lt', 'm', 'm2', 'caja', 'par', 'paquete']
 
 export default function ProductsPage() {
   const qc = useQueryClient()
+  const can = useCanAccess('products')
   const [modal, setModal] = useState<{ open: boolean; data?: any }>({ open: false })
   const [form, setForm] = useState<any>({})
   const [selectedCategory, setSelectedCategory] = useState<any>(null)
@@ -80,7 +82,7 @@ export default function ProductsPage() {
   return (
     <div>
       <PageHeader title="Productos" subtitle={`${data?.totalCount ?? 0} registros`}
-        actions={<button className="btn-primary" onClick={() => setModal({ open: true })}><Plus className="w-4 h-4" /> Nuevo Producto</button>} />
+        actions={can.write && <button className="btn-primary" onClick={() => setModal({ open: true })}><Plus className="w-4 h-4" /> Nuevo Producto</button>} />
       <div className="card p-5">
         <DataGrid columns={columns} data={data?.items ?? []} loading={isLoading} onRefresh={refetch} exportFileName="productos"
           rowClassName={(r: any) => r.isDeleted ? 'opacity-60' : ''}
@@ -95,10 +97,9 @@ export default function ProductsPage() {
               {!row.isDeleted && (row.photoCount ?? 0) > 0 && (
                 <button className="btn-ghost btn-sm p-1" title={`Ver fotos (${row.photoCount})`} onClick={() => setLightbox({ id: row.id, name: row.name })}><Images className="w-3.5 h-3.5" /></button>
               )}
-              {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => setModal({ open: true, data: row })} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
-              {!row.isDeleted
-                ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
+              {!row.isDeleted && can.write && <button className="btn-ghost btn-sm p-1" onClick={() => setModal({ open: true, data: row })} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
+              {!row.isDeleted && can.delete && <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>}
+              {row.isDeleted && can.write && <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
             </>
           )} />
         {lightbox && <ProductPhotosLightbox open={!!lightbox} onClose={() => setLightbox(null)} productId={lightbox.id} productName={lightbox.name} />}

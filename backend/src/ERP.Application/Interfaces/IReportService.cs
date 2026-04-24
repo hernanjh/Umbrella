@@ -15,4 +15,10 @@ public interface IReportService
     Task<DashboardSummaryDto> GetDashboardSummaryAsync();
     Task<byte[]> ExportToExcelAsync(string reportType, ReportQueryDto query);
     Task<byte[]> ExportToPdfAsync(string reportType, ReportQueryDto query);
+
+    Task<DailyCollectionsReportDto> GetDailyCollectionsAsync(int? zoneId, DateTime? date);
+    Task<byte[]> ExportDailyCollectionsToExcelAsync(int? zoneId, DateTime? date);
+    Task<byte[]> ExportDailyCollectionsToPdfAsync(int? zoneId, DateTime? date);
+
+    Task<DetailedSalesReportDto> GetDetailedSalesAsync(ReportQueryDto query, int? zoneId = null);
 }

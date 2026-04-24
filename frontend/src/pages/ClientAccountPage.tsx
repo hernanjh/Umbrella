@@ -5,8 +5,9 @@ import { clientAccountService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
 import SalesInvoicePreview from '../components/payments/SalesInvoicePreview'
-import { ArrowLeft, FileText, Banknote } from 'lucide-react'
+import { ArrowLeft, FileText, Banknote, Download, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
+import toast from 'react-hot-toast'
 
 export default function ClientAccountPage() {
   const { id } = useParams()
@@ -20,12 +21,39 @@ export default function ClientAccountPage() {
 
   const fmt = (n: number) => `$ ${(+n).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = filename; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportExcel = async () => {
+    if (!id) return
+    try {
+      const res = await clientAccountService.exportExcel(+id)
+      downloadBlob(res.data, `cuenta-${data?.clientCode ?? id}.xlsx`)
+    } catch { toast.error('Error al exportar Excel') }
+  }
+  const exportPdf = async () => {
+    if (!id) return
+    try {
+      const res = await clientAccountService.exportPdf(+id)
+      downloadBlob(res.data, `cuenta-${data?.clientCode ?? id}.pdf`)
+    } catch { toast.error('Error al exportar PDF') }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
         title={data ? `Cuenta Corriente — ${data.clientName}` : 'Cuenta Corriente'}
         subtitle={data?.clientCuit ? `CUIT ${data.clientCuit}` : undefined}
-        actions={<button className="btn-secondary" onClick={() => navigate('/clients')}><ArrowLeft className="w-4 h-4" /> Volver</button>}
+        actions={
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={exportExcel} disabled={!data}><Download className="w-4 h-4" /> Excel</button>
+            <button className="btn-secondary" onClick={exportPdf} disabled={!data}><FileDown className="w-4 h-4" /> PDF</button>
+            <button className="btn-secondary" onClick={() => navigate('/clients')}><ArrowLeft className="w-4 h-4" /> Volver</button>
+          </div>
+        }
       />
 
       {data && (

@@ -23,7 +23,10 @@ public record UserProfileDto(
     string Theme,
     string? Phone,
     IEnumerable<string> Roles,
-    IEnumerable<string> Permissions
+    IEnumerable<string> Permissions,
+    int? ZoneId,
+    string? ZoneName,
+    bool IsSeller
 );
 
 public record UpdateProfileDto(

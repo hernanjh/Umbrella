@@ -165,10 +165,14 @@ export const purchasePaymentsService = {
 
 export const clientAccountService = {
   get: (clientId: number) => api.get(`/clients/${clientId}/account`).then(r => r.data.data),
+  exportExcel: (clientId: number) => api.get(`/clients/${clientId}/account/excel`, { responseType: 'blob' }),
+  exportPdf: (clientId: number) => api.get(`/clients/${clientId}/account/pdf`, { responseType: 'blob' }),
 }
 
 export const supplierAccountService = {
   get: (supplierId: number) => api.get(`/suppliers/${supplierId}/account`).then(r => r.data.data),
+  exportExcel: (supplierId: number) => api.get(`/suppliers/${supplierId}/account/excel`, { responseType: 'blob' }),
+  exportPdf: (supplierId: number) => api.get(`/suppliers/${supplierId}/account/pdf`, { responseType: 'blob' }),
 }
 
 export const installmentPlansService = {
@@ -203,6 +207,13 @@ export const reportsService = {
   cash: (params: any) => api.get('/reports/cash', { params }).then(r => r.data.data),
   dashboardSummary: () => api.get('/reports/dashboard-summary').then(r => r.data.data),
   overdueInstallments: () => api.get('/reports/overdue-installments').then(r => r.data.data),
+  detailedSales: (params: any) => api.get('/reports/detailed-sales', { params }).then(r => r.data.data),
+  dailyCollections: (params: { zoneId?: number | null; date?: string }) =>
+    api.get('/reports/daily-collections', { params }).then(r => r.data.data),
+  dailyCollectionsExcel: (params: { zoneId?: number | null; date?: string }) =>
+    api.get('/reports/daily-collections/excel', { params, responseType: 'blob' }),
+  dailyCollectionsPdf: (params: { zoneId?: number | null; date?: string }) =>
+    api.get('/reports/daily-collections/pdf', { params, responseType: 'blob' }),
   exportExcel: (type: string, params: any) => api.get(`/reports/${type}/excel`, { params, responseType: 'blob' }),
   exportPdf: (type: string, params: any) => api.get(`/reports/${type}/pdf`, { params, responseType: 'blob' }),
 }

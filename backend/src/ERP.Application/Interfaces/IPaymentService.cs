@@ -27,9 +27,13 @@ public interface IPurchasePaymentService
 public interface IClientAccountService
 {
     Task<ClientAccountDto> GetAsync(int clientId);
+    Task<byte[]> ExportExcelAsync(int clientId);
+    Task<byte[]> ExportPdfAsync(int clientId);
 }
 
 public interface ISupplierAccountService
 {
     Task<SupplierAccountDto> GetAsync(int supplierId);
+    Task<byte[]> ExportExcelAsync(int supplierId);
+    Task<byte[]> ExportPdfAsync(int supplierId);
 }

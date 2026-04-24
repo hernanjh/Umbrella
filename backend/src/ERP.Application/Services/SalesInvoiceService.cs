@@ -13,12 +13,14 @@ public class SalesInvoiceService : ISalesInvoiceService
     private readonly AppDbContext _db;
     private readonly IUnitOfWork _uow;
     private readonly IRepository<SystemConfig> _config;
+    private readonly ICurrentUserContext _user;
 
-    public SalesInvoiceService(AppDbContext db, IUnitOfWork uow, IRepository<SystemConfig> config)
+    public SalesInvoiceService(AppDbContext db, IUnitOfWork uow, IRepository<SystemConfig> config, ICurrentUserContext user)
     {
         _db = db;
         _uow = uow;
         _config = config;
+        _user = user;
     }
 
     public async Task<PagedResultDto<SalesInvoiceListDto>> GetAllAsync(QueryParamsDto query, int? sellerId = null)
@@ -29,6 +31,8 @@ public class SalesInvoiceService : ISalesInvoiceService
             .AsQueryable();
 
         if (sellerId.HasValue) q = q.Where(i => i.SellerId == sellerId);
+        // Seller zone scoping: only invoices for clients of the user's zone
+        if (_user.IsZoneScoped) q = q.Where(i => i.Client.ZoneId == _user.ZoneId);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var p = $"%{query.Search}%";
@@ -67,6 +71,9 @@ public class SalesInvoiceService : ISalesInvoiceService
             .Include(i => i.Items).ThenInclude(item => item.StockLocation)
             .FirstOrDefaultAsync(i => i.Id == id)
             ?? throw new KeyNotFoundException($"Factura {id} no encontrada.");
+
+        if (_user.IsZoneScoped && inv.Client.ZoneId != _user.ZoneId)
+            throw new UnauthorizedAccessException("No tiene acceso a esta factura (cliente fuera de su zona).");
 
         return MapToDetail(inv);
     }

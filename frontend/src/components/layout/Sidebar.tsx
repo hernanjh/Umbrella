@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Truck, Package, FileText, ShoppingCart,
   BarChart2, Settings, ChevronDown, ChevronRight, Warehouse,
@@ -6,68 +6,86 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
+import { useAuthStore } from '../../store/authStore'
 
 interface SidebarProps { collapsed: boolean; onToggle: () => void }
 
-const NAV = [
+type NavChild = { label: string; to: string; module?: string }
+type NavItem = { label: string; icon: any; to?: string; module?: string; children?: NavChild[] }
+
+const NAV: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' },
   {
     label: 'Ventas', icon: FileText, children: [
-      { label: 'Facturas de Venta', to: '/sales' },
-      { label: 'Listas de Precios', to: '/price-lists' },
+      { label: 'Facturas de Venta', to: '/sales', module: 'sales' },
+      { label: 'Listas de Precios', to: '/price-lists', module: 'pricelists' },
     ]
   },
   {
     label: 'Compras', icon: ShoppingCart, children: [
-      { label: 'Facturas de Compra', to: '/purchases' },
+      { label: 'Facturas de Compra', to: '/purchases', module: 'purchases' },
     ]
   },
   {
     label: 'Stock', icon: Warehouse, children: [
-      { label: 'Estado de Stock', to: '/stock' },
-      { label: 'Ajustes', to: '/stock/adjustments' },
-      { label: 'Movimientos', to: '/stock/movements' },
+      { label: 'Estado de Stock', to: '/stock', module: 'stock' },
+      { label: 'Ajustes', to: '/stock/adjustments', module: 'stock' },
+      { label: 'Movimientos', to: '/stock/movements', module: 'stock' },
     ]
   },
   {
     label: 'Finanzas', icon: Wallet, children: [
-      { label: 'Caja', to: '/cash' },
-      { label: 'Histórico de Caja', to: '/cash/sessions' },
-      { label: 'Cuentas por Cobrar', to: '/receivables' },
-      { label: 'Cuentas por Pagar', to: '/payables' },
-      { label: 'Planes de Pago', to: '/installment-plans' },
+      { label: 'Caja', to: '/cash', module: 'cash' },
+      { label: 'Histórico de Caja', to: '/cash/sessions', module: 'cash' },
+      { label: 'Cuentas por Cobrar', to: '/receivables', module: 'receivables' },
+      { label: 'Cuentas por Pagar', to: '/payables', module: 'payables' },
+      { label: 'Planes de Pago', to: '/installment-plans', module: 'receivables' },
+      { label: 'Cobros del día', to: '/daily-collections', module: 'receivables' },
     ]
   },
-  { label: 'Clientes', icon: Users, to: '/clients' },
-  { label: 'Proveedores', icon: Truck, to: '/suppliers' },
-  { label: 'Productos', icon: Package, to: '/products' },
-  { label: 'Reportes', icon: BarChart2, to: '/reports' },
+  { label: 'Clientes', icon: Users, to: '/clients', module: 'clients' },
+  { label: 'Proveedores', icon: Truck, to: '/suppliers', module: 'suppliers' },
+  { label: 'Productos', icon: Package, to: '/products', module: 'products' },
+  { label: 'Reportes', icon: BarChart2, to: '/reports', module: 'reports' },
   {
     label: 'Seguridad', icon: Shield, children: [
-      { label: 'Usuarios', to: '/security/users' },
-      { label: 'Roles', to: '/security/roles' },
+      { label: 'Usuarios', to: '/security/users', module: 'security' },
+      { label: 'Roles', to: '/security/roles', module: 'security' },
     ]
   },
   {
     label: 'Parametrización', icon: Settings, children: [
-      { label: 'Config. General', to: '/params/system-config' },
-      { label: 'Tipos de Cliente', to: '/params/client-types' },
-      { label: 'Zonas', to: '/params/zones' },
-      { label: 'Cond. de IVA', to: '/params/vat-conditions' },
-      { label: 'Cond. de Pago', to: '/params/payment-conditions' },
-      { label: 'Formas de Pago', to: '/params/payment-methods' },
-      { label: 'Tipos de Comprobante', to: '/params/invoice-types' },
-      { label: 'Categorías', to: '/params/categories' },
-      { label: 'Locaciones de Stock', to: '/params/stock-locations' },
+      { label: 'Config. General', to: '/params/system-config', module: 'params' },
+      { label: 'Tipos de Cliente', to: '/params/client-types', module: 'params' },
+      { label: 'Zonas', to: '/params/zones', module: 'params' },
+      { label: 'Cond. de IVA', to: '/params/vat-conditions', module: 'params' },
+      { label: 'Cond. de Pago', to: '/params/payment-conditions', module: 'params' },
+      { label: 'Formas de Pago', to: '/params/payment-methods', module: 'params' },
+      { label: 'Tipos de Comprobante', to: '/params/invoice-types', module: 'params' },
+      { label: 'Categorías', to: '/params/categories', module: 'params' },
+      { label: 'Locaciones de Stock', to: '/params/stock-locations', module: 'params' },
     ]
   },
 ]
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const [openGroups, setOpenGroups] = useState<string[]>(['Ventas'])
+export default function Sidebar({ collapsed }: SidebarProps) {
+  const [openGroups, setOpenGroups] = useState<string[]>(['Ventas', 'Finanzas'])
+  const hasPermission = useAuthStore(s => s.hasPermission)
+  const isAdmin = useAuthStore(s => s.isAdmin)
 
   const toggleGroup = (label: string) =>
     setOpenGroups(g => g.includes(label) ? g.filter(x => x !== label) : [...g, label])
+
+  const visibleItems = NAV.map(item => {
+    if (isAdmin()) return item
+    if (item.to) {
+      if (!item.module || hasPermission(item.module, 'read')) return item
+      return null
+    }
+    const allowedChildren = (item.children ?? []).filter(c => !c.module || hasPermission(c.module, 'read'))
+    if (allowedChildren.length === 0) return null
+    return { ...item, children: allowedChildren }
+  }).filter((x): x is NavItem => x !== null)
 
   return (
     <aside className={clsx(
@@ -84,7 +102,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {NAV.map(item => (
+        {visibleItems.map(item => (
           item.to ? (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => clsx('sidebar-item', isActive && 'active')}>

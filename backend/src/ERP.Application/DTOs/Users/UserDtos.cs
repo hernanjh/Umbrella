@@ -11,7 +11,9 @@ public record UserListDto(
     bool IsActive,
     DateTime CreatedAt,
     string CreatedBy,
-    IEnumerable<string> Roles
+    IEnumerable<string> Roles,
+    int? ZoneId,
+    string? ZoneName
 );
 
 public record UserDetailDto(
@@ -29,7 +31,9 @@ public record UserDetailDto(
     string CreatedBy,
     DateTime? ModifiedAt,
     string? ModifiedBy,
-    IEnumerable<RoleAssignmentDto> Roles
+    IEnumerable<RoleAssignmentDto> Roles,
+    int? ZoneId,
+    string? ZoneName
 );
 
 public record RoleAssignmentDto(int RoleId, string RoleName, string AssignedBy, DateTime AssignedAt);
@@ -40,7 +44,8 @@ public record CreateUserDto(
     string Email,
     string Password,
     string? Phone,
-    IEnumerable<int> RoleIds
+    IEnumerable<int> RoleIds,
+    int? ZoneId
 );
 
 public record UpdateUserDto(
@@ -48,5 +53,6 @@ public record UpdateUserDto(
     string LastName,
     string? Phone,
     bool IsActive,
-    IEnumerable<int> RoleIds
+    IEnumerable<int> RoleIds,
+    int? ZoneId
 );

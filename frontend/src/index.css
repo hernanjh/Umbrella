@@ -42,3 +42,15 @@
   .page-header { @apply flex items-center justify-between mb-6; }
   .page-title { @apply text-2xl font-bold text-gray-900 dark:text-white; }
 }
+
+/* Print layout — for the daily-collections sheet & reports */
+@media print {
+  @page { size: A4 landscape; margin: 1cm; }
+  html, body { background: #fff !important; color: #000 !important; }
+  aside, header.app-header, .no-print { display: none !important; }
+  .card { box-shadow: none !important; border: 0 !important; }
+  main { padding: 0 !important; }
+  .daily-collections-page .table td,
+  .daily-collections-page .table th { padding: 4px 6px !important; font-size: 11px !important; }
+  .print-writeable { border-bottom: 1px solid #9ca3af; min-width: 80px; min-height: 18px; }
+}

@@ -21,7 +21,7 @@ public class UserService : IUserService
 
     public async Task<PagedResultDto<UserListDto>> GetAllAsync(QueryParamsDto query)
     {
-        var q = _db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role).AsQueryable();
+        var q = _db.Users.Include(u => u.UserRoles).ThenInclude(ur => ur.Role).Include(u => u.Zone).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -39,7 +39,7 @@ public class UserService : IUserService
         return new PagedResultDto<UserListDto>(
             items.Select(u => new UserListDto(
                 u.Id, u.Code, u.FirstName, u.LastName, u.Email, u.Phone, u.Theme, u.IsActive, u.CreatedAt, u.CreatedBy,
-                u.UserRoles.Select(ur => ur.Role.Name))),
+                u.UserRoles.Select(ur => ur.Role.Name), u.ZoneId, u.Zone?.Name)),
             total, query.Page, query.PageSize,
             (int)Math.Ceiling(total / (double)query.PageSize));
     }
@@ -48,6 +48,7 @@ public class UserService : IUserService
     {
         var user = await _db.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(u => u.Zone)
             .FirstOrDefaultAsync(u => u.Id == id)
             ?? throw new KeyNotFoundException($"Usuario {id} no encontrado.");
 
@@ -71,6 +72,7 @@ public class UserService : IUserService
             Email = dto.Email.ToLower(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Phone = dto.Phone,
+            ZoneId = dto.ZoneId,
             IsActive = true,
             CreatedBy = createdBy
         };
@@ -97,6 +99,7 @@ public class UserService : IUserService
         user.LastName = dto.LastName;
         user.Phone = dto.Phone;
         user.IsActive = dto.IsActive;
+        user.ZoneId = dto.ZoneId;
         user.ModifiedBy = modifiedBy;
         user.ModifiedAt = DateTime.UtcNow;
 
@@ -149,5 +152,6 @@ public class UserService : IUserService
     private static UserDetailDto MapToDetail(User u) => new(
         u.Id, u.Code, u.FirstName, u.LastName, u.Email, u.ProfilePhotoUrl, u.Phone, u.Theme,
         u.IsActive, u.LastLoginAt, u.CreatedAt, u.CreatedBy, u.ModifiedAt, u.ModifiedBy,
-        u.UserRoles.Select(ur => new RoleAssignmentDto(ur.RoleId, ur.Role.Name, ur.AssignedBy, ur.AssignedAt)));
+        u.UserRoles.Select(ur => new RoleAssignmentDto(ur.RoleId, ur.Role.Name, ur.AssignedBy, ur.AssignedAt)),
+        u.ZoneId, u.Zone?.Name);
 }

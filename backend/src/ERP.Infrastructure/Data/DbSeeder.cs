@@ -277,6 +277,11 @@ public static class DbSeeder
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE SalesPayments ADD COLUMN SalesInstallmentId INTEGER NULL");
         }
 
+        if (!await ColumnExistsAsync(context, "Users", "ZoneId"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN ZoneId INTEGER NULL");
+        }
+
         if (!await TableExistsAsync(context, "SalesInstallmentPlans"))
         {
             await context.Database.ExecuteSqlRawAsync(@"

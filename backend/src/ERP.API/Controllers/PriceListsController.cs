@@ -1,3 +1,4 @@
+using ERP.API.Attributes;
 using ERP.Application.DTOs.Common;
 using ERP.Application.DTOs.PriceLists;
 using ERP.Application.Interfaces;
@@ -14,14 +15,17 @@ public class PriceListsController : BaseController
     public PriceListsController(IPriceListService service) { _service = service; }
 
     [HttpGet]
+    [RequirePermission("pricelists", "read")]
     public async Task<IActionResult> GetAll([FromQuery] QueryParamsDto query)
         => Ok(new { success = true, data = await _service.GetAllAsync(query) });
 
     [HttpGet("{id}")]
+    [RequirePermission("pricelists", "read")]
     public async Task<IActionResult> GetById(int id)
         => Ok(new { success = true, data = await _service.GetByIdAsync(id) });
 
     [HttpPost]
+    [RequirePermission("pricelists", "write")]
     public async Task<IActionResult> Create([FromBody] CreatePriceListDto dto)
     {
         var result = await _service.CreateAsync(dto, CurrentUserEmail);
@@ -29,10 +33,12 @@ public class PriceListsController : BaseController
     }
 
     [HttpPut("{id}")]
+    [RequirePermission("pricelists", "write")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdatePriceListDto dto)
         => Ok(new { success = true, data = await _service.UpdateAsync(id, dto, CurrentUserEmail) });
 
     [HttpDelete("{id}")]
+    [RequirePermission("pricelists", "delete")]
     public async Task<IActionResult> Delete(int id)
     {
         await _service.SoftDeleteAsync(id, CurrentUserEmail);
@@ -40,6 +46,7 @@ public class PriceListsController : BaseController
     }
 
     [HttpPut("{id}/items")]
+    [RequirePermission("pricelists", "write")]
     public async Task<IActionResult> UpsertItem(int id, [FromBody] UpsertPriceListItemDto dto)
     {
         await _service.UpsertItemAsync(id, dto, CurrentUserEmail);
@@ -47,6 +54,7 @@ public class PriceListsController : BaseController
     }
 
     [HttpDelete("{id}/items/{productId}")]
+    [RequirePermission("pricelists", "delete")]
     public async Task<IActionResult> RemoveItem(int id, int productId)
     {
         await _service.RemoveItemAsync(id, productId, CurrentUserEmail);
@@ -54,6 +62,7 @@ public class PriceListsController : BaseController
     }
 
     [HttpPost("{id}/bulk-update")]
+    [RequirePermission("pricelists", "write")]
     public async Task<IActionResult> BulkUpdate(int id, [FromBody] BulkUpdatePriceListDto dto)
     {
         await _service.BulkUpdateAsync(id, dto, CurrentUserEmail);
@@ -61,6 +70,7 @@ public class PriceListsController : BaseController
     }
 
     [HttpPost("{id}/recalculate")]
+    [RequirePermission("pricelists", "write")]
     public async Task<IActionResult> Recalculate(int id)
     {
         await _service.RecalculatePricesAsync(id);

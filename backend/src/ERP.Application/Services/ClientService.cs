@@ -12,13 +12,16 @@ public class ClientService : IClientService
 {
     private readonly AppDbContext _db;
     private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserContext _user;
 
-    public ClientService(AppDbContext db, IUnitOfWork uow) { _db = db; _uow = uow; }
+    public ClientService(AppDbContext db, IUnitOfWork uow, ICurrentUserContext user) { _db = db; _uow = uow; _user = user; }
 
     public async Task<PagedResultDto<ClientListDto>> GetAllAsync(QueryParamsDto query, int? requestingUserId = null)
     {
         var q = _db.Clients.Include(c => c.ClientType).Include(c => c.Zone).Include(c => c.AssignedSeller).AsQueryable();
         if (requestingUserId.HasValue) q = q.Where(c => c.AssignedSellerId == requestingUserId);
+        // Seller-role zone scoping: restrict to clients in the user's zone.
+        if (_user.IsZoneScoped) q = q.Where(c => c.ZoneId == _user.ZoneId);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var p = $"%{query.Search}%";
@@ -44,17 +47,22 @@ public class ClientService : IClientService
             .Include(c => c.DefaultPriceList).Include(c => c.AssignedSeller)
             .Include(c => c.Documents)
             .FirstOrDefaultAsync(c => c.Id == id) ?? throw new KeyNotFoundException();
+        if (_user.IsZoneScoped && c.ZoneId != _user.ZoneId)
+            throw new UnauthorizedAccessException("No tiene acceso a este cliente (fuera de su zona).");
         return MapToDetail(c);
     }
 
     public async Task<IEnumerable<ClientSearchDto>> SearchAsync(string term)
     {
         var p = $"%{term ?? ""}%";
-        return await _db.Clients
+        var q = _db.Clients
             .Include(c => c.DefaultPriceList)
             .Include(c => c.ClientType).ThenInclude(ct => ct!.DefaultPriceList)
             .Include(c => c.AssignedSeller)
             .Include(c => c.Zone).ThenInclude(z => z!.DefaultSeller)
+            .AsQueryable();
+        if (_user.IsZoneScoped) q = q.Where(c => c.ZoneId == _user.ZoneId);
+        return await q
             .Where(c => EF.Functions.Like(c.BusinessName, p) || (c.Cuit != null && EF.Functions.Like(c.Cuit, p)) || EF.Functions.Like(c.Code, p))
             .OrderBy(c => c.BusinessName)
             .Take(50)
