@@ -5,11 +5,12 @@ import DataGrid, { Column } from '../components/ui/DataGrid'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
-import { Plus, Edit2, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Edit2, Trash2, RotateCcw, Images, ImageIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '../components/ui/Badge'
 import DocumentsSection from '../components/uploads/DocumentsSection'
 import ProductPhotosSection from '../components/uploads/ProductPhotosSection'
+import ProductPhotosLightbox from '../components/uploads/ProductPhotosLightbox'
 
 const UNITS = ['un', 'kg', 'lt', 'm', 'm2', 'caja', 'par', 'paquete']
 
@@ -19,6 +20,7 @@ export default function ProductsPage() {
   const [form, setForm] = useState<any>({})
   const [selectedCategory, setSelectedCategory] = useState<any>(null)
   const [selectedUnit, setSelectedUnit] = useState<any>(null)
+  const [lightbox, setLightbox] = useState<{ id: number; name: string } | null>(null)
 
   const [showDeleted, setShowDeleted] = useState(false)
   const { data, isLoading, refetch } = useQuery({ queryKey: ['products', showDeleted], queryFn: () => productsService.getAll({ page: 1, pageSize: 500, includeDeleted: showDeleted }) })
@@ -49,6 +51,11 @@ export default function ProductsPage() {
   const restoreMutation = useMutation({ mutationFn: productsService.restore, onSuccess: () => { toast.success('Restaurado'); qc.invalidateQueries({ queryKey: ['products'] }) } })
 
   const columns: Column<any>[] = [
+    { key: 'photoUrl', header: '', width: '60px', render: (r: any) => (
+      r.photoUrl
+        ? <img src={r.photoUrl} alt="" className="w-10 h-10 object-cover rounded" />
+        : <div className="w-10 h-10 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400"><ImageIcon className="w-4 h-4" /></div>
+    ) },
     { key: 'code', header: 'Código', width: '100px' },
     { key: 'name', header: 'Nombre' },
     { key: 'brand', header: 'Marca' },
@@ -85,12 +92,16 @@ export default function ProductsPage() {
           }
           actions={(row: any) => (
             <>
+              {!row.isDeleted && (row.photoCount ?? 0) > 0 && (
+                <button className="btn-ghost btn-sm p-1" title={`Ver fotos (${row.photoCount})`} onClick={() => setLightbox({ id: row.id, name: row.name })}><Images className="w-3.5 h-3.5" /></button>
+              )}
               {!row.isDeleted && <button className="btn-ghost btn-sm p-1" onClick={() => setModal({ open: true, data: row })} title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>}
               {!row.isDeleted
                 ? <button className="btn-ghost btn-sm p-1 text-red-500" onClick={() => deleteMutation.mutate(row.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                 : <button className="btn-ghost btn-sm p-1 text-green-600" onClick={() => restoreMutation.mutate(row.id)} title="Reactivar"><RotateCcw className="w-3.5 h-3.5" /></button>}
             </>
           )} />
+        {lightbox && <ProductPhotosLightbox open={!!lightbox} onClose={() => setLightbox(null)} productId={lightbox.id} productName={lightbox.name} />}
       </div>
       <Modal open={modal.open} onClose={() => setModal({ open: false })} title={modal.data ? 'Editar Producto' : 'Nuevo Producto'} size="2xl"
         footer={<><button className="btn-secondary" onClick={() => setModal({ open: false })}>Cancelar</button><button className="btn-primary" onClick={handleSubmit} disabled={saveMutation.isPending}>Guardar</button></>}>

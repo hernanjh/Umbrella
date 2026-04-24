@@ -272,6 +272,59 @@ public static class DbSeeder
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE Products ADD COLUMN Model TEXT NULL");
         }
 
+        if (!await ColumnExistsAsync(context, "SalesPayments", "SalesInstallmentId"))
+        {
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE SalesPayments ADD COLUMN SalesInstallmentId INTEGER NULL");
+        }
+
+        if (!await TableExistsAsync(context, "SalesInstallmentPlans"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE SalesInstallmentPlans (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    SalesInvoiceId INTEGER NOT NULL,
+                    Frequency TEXT NOT NULL DEFAULT 'monthly',
+                    NumberOfInstallments INTEGER NOT NULL DEFAULT 1,
+                    StartDate TEXT NOT NULL,
+                    TotalAmount decimal(18,4) NOT NULL DEFAULT 0,
+                    Status TEXT NOT NULL DEFAULT 'active',
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (SalesInvoiceId) REFERENCES SalesInvoices(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IX_SalesInstallmentPlans_InvoiceId ON SalesInstallmentPlans(SalesInvoiceId) WHERE IsDeleted=0");
+        }
+
+        if (!await TableExistsAsync(context, "SalesInstallments"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE SalesInstallments (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    SalesInstallmentPlanId INTEGER NOT NULL,
+                    SequenceNumber INTEGER NOT NULL DEFAULT 1,
+                    DueDate TEXT NOT NULL,
+                    Amount decimal(18,4) NOT NULL DEFAULT 0,
+                    PaidAmount decimal(18,4) NOT NULL DEFAULT 0,
+                    Status TEXT NOT NULL DEFAULT 'pending',
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL,
+                    FOREIGN KEY (SalesInstallmentPlanId) REFERENCES SalesInstallmentPlans(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE INDEX IX_SalesInstallments_PlanId ON SalesInstallments(SalesInstallmentPlanId)");
+        }
+
         if (!await TableExistsAsync(context, "ProductPhotos"))
         {
             await context.Database.ExecuteSqlRawAsync(@"

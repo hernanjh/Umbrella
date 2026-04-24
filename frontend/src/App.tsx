@@ -37,6 +37,7 @@ import CashSessionsPage from './pages/CashSessionsPage'
 import CashSessionDetailPage from './pages/CashSessionDetailPage'
 import ReceivablesPage from './pages/ReceivablesPage'
 import PayablesPage from './pages/PayablesPage'
+import InstallmentPlansPage from './pages/InstallmentPlansPage'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuthStore()
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="cash/sessions/:id" element={<CashSessionDetailPage />} />
         <Route path="receivables" element={<ReceivablesPage />} />
         <Route path="payables" element={<PayablesPage />} />
+        <Route path="installment-plans" element={<InstallmentPlansPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="params/categories" element={<CategoriesPage />} />
         <Route path="params/client-types" element={<ClientTypesPage />} />

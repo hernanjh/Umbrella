@@ -8,6 +8,9 @@ public class SalesPayment : BaseEntity
     public int PaymentMethodId { get; set; }
     public PaymentMethod PaymentMethod { get; set; } = null!;
 
+    public int? SalesInstallmentId { get; set; }
+    public SalesInstallment? SalesInstallment { get; set; }
+
     public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
     public decimal Amount { get; set; }
     public string? Reference { get; set; }

@@ -35,6 +35,7 @@ const NAV = [
       { label: 'Histórico de Caja', to: '/cash/sessions' },
       { label: 'Cuentas por Cobrar', to: '/receivables' },
       { label: 'Cuentas por Pagar', to: '/payables' },
+      { label: 'Planes de Pago', to: '/installment-plans' },
     ]
   },
   { label: 'Clientes', icon: Users, to: '/clients' },

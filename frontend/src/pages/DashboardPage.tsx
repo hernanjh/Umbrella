@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { salesService, clientsService, productsService, reportsService } from '../services'
 import StatCard from '../components/ui/StatCard'
-import { FileText, Package, Users, DollarSign, CreditCard, AlertTriangle, Wallet, TrendingDown } from 'lucide-react'
+import { FileText, Package, Users, DollarSign, CreditCard, AlertTriangle, Wallet, TrendingDown, CalendarDays } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -47,6 +47,19 @@ export default function DashboardPage() {
           <StatCard title={summary?.openCashSessionId ? 'Saldo de caja' : 'Caja cerrada'} value={summary?.openCashSessionId ? fmt(summary?.currentCashBalance) : '—'} icon={<Wallet className="w-6 h-6" />} color="green" />
         </button>
       </div>
+
+      {summary && summary.overdueInstallmentCount > 0 && (
+        <button type="button" onClick={() => navigate('/installment-plans')} className="w-full text-left">
+          <div className="card p-4 flex items-center gap-3 border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20">
+            <CalendarDays className="w-8 h-8 text-red-600" />
+            <div className="flex-1">
+              <div className="font-semibold text-red-800 dark:text-red-300">{summary.overdueInstallmentCount} cuota(s) vencida(s) sin pagar</div>
+              <div className="text-sm text-red-700 dark:text-red-400">Total: {fmt(summary.overdueInstallmentAmount)}</div>
+            </div>
+            <AlertTriangle className="w-6 h-6 text-red-600" />
+          </div>
+        </button>
+      )}
 
       {/* Activity KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

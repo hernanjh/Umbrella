@@ -7,6 +7,7 @@ public record ProductListDto(
     string? Barcode,
     string? Brand,
     string? Model,
+    string? PhotoUrl,
     string? CategoryName,
     string Unit,
     bool IsActive,
@@ -15,6 +16,7 @@ public record ProductListDto(
     decimal LastPurchasePrice,
     decimal AveragePurchasePrice,
     decimal TotalStock,
+    int PhotoCount,
     DateTime CreatedAt
 );
 

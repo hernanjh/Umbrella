@@ -166,5 +166,7 @@ public record DashboardSummaryDto(
     decimal OverdueReceivableAmount,
     int OpenCashSessionId,
     string? OpenCashSessionCode,
-    DateTime? OpenCashSessionOpenedAt
+    DateTime? OpenCashSessionOpenedAt,
+    int OverdueInstallmentCount,
+    decimal OverdueInstallmentAmount
 );

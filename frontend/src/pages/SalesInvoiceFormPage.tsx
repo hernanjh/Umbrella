@@ -5,6 +5,7 @@ import { salesService, clientsService, productsService, paramsService, stockServ
 import SearchAutocomplete from '../components/ui/SearchAutocomplete'
 import PageHeader from '../components/ui/PageHeader'
 import PaymentsSection from '../components/payments/PaymentsSection'
+import InstallmentPlanSection from '../components/payments/InstallmentPlanSection'
 import { Plus, Trash2, Save, ArrowLeft, CheckCircle, XCircle, FileDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -345,15 +346,24 @@ export default function SalesInvoiceFormPage() {
       </div>
 
       {isEdit && existingInvoice && (
-        <PaymentsSection
-          kind="sales"
-          invoiceId={existingInvoice.id}
-          invoiceFullNumber={existingInvoice.fullNumber}
-          invoiceStatus={existingInvoice.status}
-          total={+existingInvoice.total}
-          paidAmount={+existingInvoice.paidAmount}
-          balanceDue={+existingInvoice.balanceDue}
-        />
+        <>
+          <InstallmentPlanSection
+            invoiceId={existingInvoice.id}
+            invoiceFullNumber={existingInvoice.fullNumber}
+            invoiceStatus={existingInvoice.status}
+            balanceDue={+existingInvoice.balanceDue}
+            defaultStartDate={invoiceDate}
+          />
+          <PaymentsSection
+            kind="sales"
+            invoiceId={existingInvoice.id}
+            invoiceFullNumber={existingInvoice.fullNumber}
+            invoiceStatus={existingInvoice.status}
+            total={+existingInvoice.total}
+            paidAmount={+existingInvoice.paidAmount}
+            balanceDue={+existingInvoice.balanceDue}
+          />
+        </>
       )}
     </div>
   )

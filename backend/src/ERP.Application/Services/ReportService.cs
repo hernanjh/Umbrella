@@ -196,6 +196,11 @@ public class ReportService : IReportService
                 + active.Where(m => m.Type == "adjustment").Sum(m => m.Amount);
         }
         var overdue = receivables.Where(i => i.DueDate < today).ToList();
+
+        var overdueInstallments = await _db.SalesInstallments
+            .Where(i => i.DueDate < today && i.Status != "paid" && i.Plan.Status == "active")
+            .ToListAsync();
+
         return new DashboardSummaryDto(
             receivables.Sum(i => i.BalanceDue),
             payables.Sum(i => i.BalanceDue),
@@ -204,6 +209,8 @@ public class ReportService : IReportService
             overdue.Sum(i => i.BalanceDue),
             session?.Id ?? 0,
             session?.Code,
-            session?.OpeningDate);
+            session?.OpeningDate,
+            overdueInstallments.Count,
+            overdueInstallments.Sum(i => i.Amount - i.PaidAmount));
     }
 }

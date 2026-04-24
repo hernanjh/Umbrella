@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
-import { Download, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard } from 'lucide-react'
+import { Download, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard, CalendarDays } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
 import toast from 'react-hot-toast'
 
-type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'stock' | 'payments' | 'cash' | 'receivables' | 'payables'
+type ReportType = 'sales-by-period' | 'sales-by-seller' | 'sales-by-client' | 'stock' | 'payments' | 'cash' | 'receivables' | 'payables' | 'overdue-installments'
 
 export default function ReportsPage() {
   const [active, setActive] = useState<ReportType>('sales-by-period')
@@ -25,12 +25,13 @@ export default function ReportsPage() {
       if (active === 'cash') return reportsService.cash(params)
       if (active === 'receivables') return reportsService.receivables()
       if (active === 'payables') return reportsService.payables()
+      if (active === 'overdue-installments') return reportsService.overdueInstallments()
       return reportsService.stock(params)
     }
   })
 
   const fmt = (n: any) => n == null ? '—' : `$ ${(+n).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
-  const showDateFilters = active !== 'receivables' && active !== 'payables'
+  const showDateFilters = active !== 'receivables' && active !== 'payables' && active !== 'overdue-installments'
 
   const handleExcelExport = async () => {
     try {
@@ -50,6 +51,7 @@ export default function ReportsPage() {
     { key: 'cash' as const, label: 'Caja', icon: <Wallet className="w-4 h-4" /> },
     { key: 'receivables' as const, label: 'Por Cobrar', icon: <CreditCard className="w-4 h-4" /> },
     { key: 'payables' as const, label: 'Por Pagar', icon: <CreditCard className="w-4 h-4" /> },
+    { key: 'overdue-installments' as const, label: 'Cuotas Vencidas', icon: <CalendarDays className="w-4 h-4" /> },
   ]
 
   return (
@@ -224,6 +226,38 @@ export default function ReportsPage() {
               <tbody>{(data.items ?? []).map((c: any) => (
                 <tr key={c.clientId}><td>{c.clientName}</td><td>{c.cuit}</td><td className="text-right font-mono">{fmt(c.pendingAmount)}</td><td className={`text-right font-mono ${c.overdueAmount > 0 ? 'text-red-600 font-semibold' : ''}`}>{fmt(c.overdueAmount)}</td><td className="text-right font-mono font-bold">{fmt(c.totalDue)}</td></tr>
               ))}</tbody>
+            </table>
+          </div>
+        )}
+
+        {!isLoading && active === 'overdue-installments' && data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-red-700">{data.count}</p>
+                <p className="text-sm text-gray-500 mt-1">Cuotas vencidas</p>
+              </div>
+              <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+                <p className="text-2xl font-bold text-amber-700">{fmt(data.totalOverdueAmount)}</p>
+                <p className="text-sm text-gray-500 mt-1">Total vencido</p>
+              </div>
+            </div>
+            <table className="table">
+              <thead><tr><th>Factura</th><th>Cliente</th><th>Teléfono</th><th>Cuota</th><th>Vencimiento</th><th className="text-right">Días vencida</th><th className="text-right">Monto</th><th className="text-right">Saldo</th></tr></thead>
+              <tbody>
+                {(data.items ?? []).map((i: any) => (
+                  <tr key={i.installmentId}>
+                    <td className="font-mono text-xs">{i.invoiceFullNumber}</td>
+                    <td>{i.clientName}</td>
+                    <td className="text-gray-500">{i.clientPhone ?? '—'}</td>
+                    <td className="font-mono">{i.sequenceNumber}/{i.numberOfInstallments}</td>
+                    <td>{format(new Date(i.dueDate), 'dd/MM/yyyy')}</td>
+                    <td className="text-right font-mono text-red-600 font-semibold">{i.daysOverdue}</td>
+                    <td className="text-right font-mono">{fmt(i.amount)}</td>
+                    <td className="text-right font-mono font-bold text-red-600">{fmt(i.balanceDue)}</td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         )}

@@ -17,7 +17,7 @@ public class ProductService : IProductService
 
     public async Task<PagedResultDto<ProductListDto>> GetAllAsync(QueryParamsDto query)
     {
-        var q = _db.Products.Include(p => p.Category).Include(p => p.StockEntries).AsQueryable();
+        var q = _db.Products.Include(p => p.Category).Include(p => p.StockEntries).Include(p => p.Photos).AsQueryable();
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var pat = $"%{query.Search}%";
@@ -27,9 +27,12 @@ public class ProductService : IProductService
         var total = await q.CountAsync();
         var products = await q.OrderBy(p => p.Name).Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToListAsync();
         var items = products.Select(p => new ProductListDto(p.Id, p.Code, p.Name, p.Barcode, p.Brand, p.Model,
+                p.PhotoUrl,
                 p.Category != null ? p.Category.Name : null,
                 p.Unit, p.IsActive, p.IsDeleted, p.TrackStock, p.LastPurchasePrice, p.AveragePurchasePrice,
-                p.StockEntries.Sum(s => s.Quantity), p.CreatedAt)).ToList();
+                p.StockEntries.Sum(s => s.Quantity),
+                p.Photos.Count(ph => !ph.IsDeleted),
+                p.CreatedAt)).ToList();
         return new PagedResultDto<ProductListDto>(items, total, query.Page, query.PageSize, (int)Math.Ceiling(total / (double)query.PageSize));
     }
 

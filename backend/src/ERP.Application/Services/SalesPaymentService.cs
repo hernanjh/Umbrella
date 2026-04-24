@@ -125,6 +125,24 @@ public class SalesPaymentService : ISalesPaymentService
             payment.DeletedAt = DateTime.UtcNow;
             _db.SalesPayments.Update(payment);
 
+            if (payment.SalesInstallmentId.HasValue)
+            {
+                var inst = await _db.SalesInstallments.FindAsync(payment.SalesInstallmentId.Value);
+                if (inst != null)
+                {
+                    inst.PaidAmount -= payment.Amount;
+                    if (inst.PaidAmount < 0) inst.PaidAmount = 0;
+                    inst.Status = inst.PaidAmount >= inst.Amount - 0.001m
+                        ? "paid"
+                        : inst.PaidAmount > 0
+                            ? "partially_paid"
+                            : (inst.DueDate.Date < DateTime.UtcNow.Date ? "overdue" : "pending");
+                    inst.ModifiedBy = deletedBy;
+                    inst.ModifiedAt = DateTime.UtcNow;
+                    _db.SalesInstallments.Update(inst);
+                }
+            }
+
             var cashMovements = await _db.CashMovements
                 .Where(m => m.ReferenceType == "SalesPayment" && m.ReferenceId == payment.Id && !m.IsDeleted)
                 .ToListAsync();

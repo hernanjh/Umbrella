@@ -171,6 +171,17 @@ export const supplierAccountService = {
   get: (supplierId: number) => api.get(`/suppliers/${supplierId}/account`).then(r => r.data.data),
 }
 
+export const installmentPlansService = {
+  getByInvoice: (invoiceId: number) => api.get(`/sales-invoices/${invoiceId}/installment-plan`).then(r => r.data.data),
+  create: (invoiceId: number, data: any) => api.post(`/sales-invoices/${invoiceId}/installment-plan`, data).then(r => r.data.data),
+  updateInstallment: (invoiceId: number, installmentId: number, data: any) =>
+    api.put(`/sales-invoices/${invoiceId}/installment-plan/installments/${installmentId}`, data).then(r => r.data.data),
+  delete: (invoiceId: number) => api.delete(`/sales-invoices/${invoiceId}/installment-plan`),
+  pay: (invoiceId: number, installmentId: number, data: any) =>
+    api.post(`/sales-invoices/${invoiceId}/installment-plan/installments/${installmentId}/pay`, data).then(r => r.data.data),
+  getAll: (status?: string) => api.get('/installment-plans', { params: status ? { status } : undefined }).then(r => r.data.data),
+}
+
 export const cashService = {
   getCurrent: () => api.get('/cash/current').then(r => r.data.data),
   getSessions: (params?: any) => api.get('/cash/sessions', { params }).then(r => r.data.data),
@@ -191,6 +202,7 @@ export const reportsService = {
   payables: () => api.get('/reports/payables').then(r => r.data.data),
   cash: (params: any) => api.get('/reports/cash', { params }).then(r => r.data.data),
   dashboardSummary: () => api.get('/reports/dashboard-summary').then(r => r.data.data),
+  overdueInstallments: () => api.get('/reports/overdue-installments').then(r => r.data.data),
   exportExcel: (type: string, params: any) => api.get(`/reports/${type}/excel`, { params, responseType: 'blob' }),
   exportPdf: (type: string, params: any) => api.get(`/reports/${type}/pdf`, { params, responseType: 'blob' }),
 }
