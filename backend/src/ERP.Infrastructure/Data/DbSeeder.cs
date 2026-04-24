@@ -282,6 +282,19 @@ public static class DbSeeder
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN ZoneId INTEGER NULL");
         }
 
+        if (!await TableExistsAsync(context, "NotificationReads"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE NotificationReads (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    AlertKey TEXT NOT NULL,
+                    ReadAt TEXT NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users(Id)
+                )");
+            await context.Database.ExecuteSqlRawAsync("CREATE UNIQUE INDEX IX_NotificationReads_User_Key ON NotificationReads(UserId, AlertKey)");
+        }
+
         if (!await TableExistsAsync(context, "SalesInstallmentPlans"))
         {
             await context.Database.ExecuteSqlRawAsync(@"

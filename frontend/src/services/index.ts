@@ -196,6 +196,12 @@ export const cashService = {
   deleteMovement: (id: number) => api.delete(`/cash/movements/${id}`),
 }
 
+export const alertsService = {
+  getAll: () => api.get('/alerts').then(r => r.data.data),
+  markRead: (keys: string[]) => api.post('/alerts/mark-read', { keys }).then(r => r.data),
+  markAllRead: () => api.post('/alerts/mark-all-read').then(r => r.data),
+}
+
 export const reportsService = {
   salesByPeriod: (params: any) => api.get('/reports/sales-by-period', { params }).then(r => r.data.data),
   salesBySeller: (params: any) => api.get('/reports/sales-by-seller', { params }).then(r => r.data.data),

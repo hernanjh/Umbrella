@@ -1,10 +1,10 @@
-import { Bell, Sun, Moon, ChevronDown, User, LogOut, Settings } from 'lucide-react'
+import { Sun, Moon, ChevronDown, User, LogOut, Settings } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
 import { authService } from '../../services'
-import clsx from 'clsx'
+import NotificationsDropdown from './NotificationsDropdown'
 
 export default function Header() {
   const { user, logout } = useAuthStore()
@@ -36,10 +36,7 @@ export default function Header() {
         </button>
 
         {/* Notifications */}
-        <button className="btn-ghost p-2 rounded-lg relative">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
+        <NotificationsDropdown />
 
         {/* User menu */}
         <div className="relative" ref={ref}>

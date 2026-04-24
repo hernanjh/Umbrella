@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
     public DbSet<ProductPhoto> ProductPhotos => Set<ProductPhoto>();
     public DbSet<SalesInstallmentPlan> SalesInstallmentPlans => Set<SalesInstallmentPlan>();
     public DbSet<SalesInstallment> SalesInstallments => Set<SalesInstallment>();
+    public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
         modelBuilder.Entity<Product>().HasIndex(p => p.Barcode).IsUnique().HasFilter("Barcode IS NOT NULL");
         modelBuilder.Entity<StockEntry>().HasIndex(s => new { s.ProductId, s.StockLocationId }).IsUnique();
+        modelBuilder.Entity<NotificationRead>().HasIndex(n => new { n.UserId, n.AlertKey }).IsUnique();
 
         // Decimal precision
         foreach (var property in modelBuilder.Model.GetEntityTypes()
