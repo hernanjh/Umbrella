@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { reportsService } from '../services'
+import { reportsService, stockService } from '../services'
 import PageHeader from '../components/ui/PageHeader'
 import { Download, FileDown, Printer, BarChart2, Users, Package, FileText, Banknote, Wallet, CreditCard, CalendarDays, ListChecks } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -13,11 +13,20 @@ export default function ReportsPage() {
   const [active, setActive] = useState<ReportType>('sales-by-period')
   const [dateFrom, setDateFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
   const [dateTo, setDateTo] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [locationId, setLocationId] = useState<number | ''>('')
+
+  const { data: locations } = useQuery({ queryKey: ['stock-locations'], queryFn: stockService.getLocations })
+
+  const buildParams = () => {
+    const p: any = { dateFrom, dateTo }
+    if (active === 'stock' && locationId !== '') p.locationId = locationId
+    return p
+  }
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ['report', active, dateFrom, dateTo],
+    queryKey: ['report', active, dateFrom, dateTo, locationId],
     queryFn: () => {
-      const params = { dateFrom, dateTo }
+      const params = buildParams()
       if (active === 'sales-by-period') return reportsService.salesByPeriod(params)
       if (active === 'sales-by-seller') return reportsService.salesBySeller(params)
       if (active === 'sales-by-client') return reportsService.salesByClient(params)
@@ -33,10 +42,11 @@ export default function ReportsPage() {
 
   const fmt = (n: any) => n == null ? '—' : `$ ${(+n).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
   const showDateFilters = active !== 'receivables' && active !== 'payables' && active !== 'overdue-installments'
+  const showLocationFilter = active === 'stock'
 
   const handleExcelExport = async () => {
     try {
-      const res = await reportsService.exportExcel(active, { dateFrom, dateTo })
+      const res = await reportsService.exportExcel(active, buildParams())
       const url = URL.createObjectURL(res.data)
       const a = document.createElement('a'); a.href = url; a.download = `${active}-${format(new Date(), 'yyyyMMdd')}.xlsx`; a.click()
       URL.revokeObjectURL(url)
@@ -45,7 +55,7 @@ export default function ReportsPage() {
 
   const handlePdfExport = async () => {
     try {
-      const res = await reportsService.exportPdf(active, { dateFrom, dateTo })
+      const res = await reportsService.exportPdf(active, buildParams())
       const url = URL.createObjectURL(res.data)
       const a = document.createElement('a'); a.href = url; a.download = `${active}-${format(new Date(), 'yyyyMMdd')}.pdf`; a.click()
       URL.revokeObjectURL(url)
@@ -91,16 +101,33 @@ export default function ReportsPage() {
       </div>
 
       {/* Filters */}
-      {showDateFilters && (
+      {(showDateFilters || showLocationFilter) && (
         <div className="card p-4 flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <label className="label mb-0">Desde</label>
-            <input type="date" className="input w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="label mb-0">Hasta</label>
-            <input type="date" className="input w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
+          {showDateFilters && (
+            <>
+              <div className="flex items-center gap-2">
+                <label className="label mb-0">Desde</label>
+                <input type="date" className="input w-40" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="label mb-0">Hasta</label>
+                <input type="date" className="input w-40" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              </div>
+            </>
+          )}
+          {showLocationFilter && (
+            <div className="flex items-center gap-2">
+              <label className="label mb-0">Locación</label>
+              <select className="input w-56"
+                value={locationId}
+                onChange={e => setLocationId(e.target.value === '' ? '' : +e.target.value)}>
+                <option value="">Todas las locaciones</option>
+                {(locations ?? []).map((l: any) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button className="btn-primary btn-sm" onClick={() => refetch()}>Aplicar</button>
         </div>
       )}

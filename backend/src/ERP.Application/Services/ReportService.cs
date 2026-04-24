@@ -61,12 +61,19 @@ public class ReportService : IReportService
             .Include(p => p.StockEntries).ThenInclude(s => s.StockLocation).ToListAsync();
         var items = products.Select(p =>
         {
-            var total = p.StockEntries.Sum(s => s.Quantity);
+            // When a location is specified, only consider entries in that location.
+            var entries = q.LocationId.HasValue
+                ? p.StockEntries.Where(s => s.StockLocationId == q.LocationId.Value).ToList()
+                : p.StockEntries.ToList();
+            var total = entries.Sum(s => s.Quantity);
             var value = total * p.AveragePurchasePrice;
             return new StockReportItemDto(p.Id, p.Code, p.Name, p.Category?.Name, total, p.MinimumStock, total < p.MinimumStock,
-                p.AveragePurchasePrice, value, p.StockEntries.Select(s => new StockLocationValueDto(s.StockLocation.Name, s.Quantity, s.Quantity * p.AveragePurchasePrice)));
+                p.AveragePurchasePrice, value, entries.Select(s => new StockLocationValueDto(s.StockLocation.Name, s.Quantity, s.Quantity * p.AveragePurchasePrice)));
         });
-        return new StockReportDto(items, items.Sum(i => i.TotalValue));
+        // If filtering by location, hide products that have no stock there (they'd all be 0/0).
+        if (q.LocationId.HasValue) items = items.Where(i => i.TotalStock != 0 || i.BelowMinimum);
+        var list = items.ToList();
+        return new StockReportDto(list, list.Sum(i => i.TotalValue));
     }
 
     public async Task<PaymentsReportDto> GetPaymentsReportAsync(ReportQueryDto q)
