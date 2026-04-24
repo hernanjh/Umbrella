@@ -8,9 +8,6 @@
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(npm list *)",
       "Bash(npm root *)",
-      "Bash(NODE_PATH=\"C:/Users/hhegykozi/AppData/Roaming/npm/node_modules\" node build_user_manual.js)",
-      "Bash(NODE_PATH=\"C:/Users/hhegykozi/AppData/Roaming/npm/node_modules\" node build_api_manual.js)",
-      "Bash(python \"C:/Users/hhegykozi/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/66fe21e6-307f-4de4-9782-b267df6fc1e5/814c100f-3fdf-4a9f-969c-66b6be17e288/skills/docx/scripts/office/validate.py\" \"C:/Users/hhegykozi/source/repos/Umbrella/.claude/worktrees/compassionate-kapitsa-600837/docs/Manual_de_Usuario_Umbrella_ERP.docx\")",
       "Bash(python -c ' *)"
     ]
   }

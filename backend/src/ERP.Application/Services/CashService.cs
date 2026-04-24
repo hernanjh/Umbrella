@@ -176,10 +176,12 @@ public class CashService : ICashService
     private static CashSessionDetailDto MapDetail(CashSession s)
     {
         var active = s.Movements.Where(m => !m.IsDeleted).ToList();
-        var totalIncome = active.Where(m => m.Type == "income" || m.Type == "opening").Sum(m => m.Amount);
+        var opening = active.Where(m => m.Type == "opening").Sum(m => m.Amount);
+        var totalIncome = active.Where(m => m.Type == "income").Sum(m => m.Amount);
         var totalExpense = active.Where(m => m.Type == "expense").Sum(m => m.Amount);
         var adjustments = active.Where(m => m.Type == "adjustment").Sum(m => m.Amount);
-        var current = totalIncome - totalExpense + adjustments;
+        // Current balance includes the opening, but the income KPI should not.
+        var current = opening + totalIncome - totalExpense + adjustments;
         return new CashSessionDetailDto(
             s.Id, s.Code, s.OpeningDate, s.OpeningBalance, s.ClosingDate,
             s.CountedBalance, s.ExpectedBalance, s.DifferenceAmount, s.Status,
