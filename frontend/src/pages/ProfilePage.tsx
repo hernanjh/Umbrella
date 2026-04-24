@@ -31,7 +31,7 @@ export default function ProfilePage() {
 
       <div className="card p-6">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Datos personales</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group"><label className="label">Nombre</label><input className="input" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Apellido</label><input className="input" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Teléfono</label><input className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>

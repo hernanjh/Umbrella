@@ -12,6 +12,7 @@ import CategoriesPage from './pages/params/CategoriesPage'
 import ClientTypesPage from './pages/params/ClientTypesPage'
 import ZonesPage from './pages/params/ZonesPage'
 import VatConditionsPage from './pages/params/VatConditionsPage'
+import VatRatesPage from './pages/params/VatRatesPage'
 import PaymentConditionsPage from './pages/params/PaymentConditionsPage'
 import StockLocationsPage from './pages/params/StockLocationsPage'
 import SystemConfigPage from './pages/params/SystemConfigPage'
@@ -87,6 +88,7 @@ export default function App() {
         <Route path="params/client-types" element={<ClientTypesPage />} />
         <Route path="params/zones" element={<ZonesPage />} />
         <Route path="params/vat-conditions" element={<VatConditionsPage />} />
+        <Route path="params/vat-rates" element={<VatRatesPage />} />
         <Route path="params/payment-conditions" element={<PaymentConditionsPage />} />
         <Route path="params/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="params/invoice-types" element={<InvoiceTypesPage />} />

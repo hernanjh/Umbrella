@@ -165,7 +165,7 @@ export default function UsersPage() {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="form-group">
               <label className="label">Nombre *</label>
               <input className="input" required value={form.firstName ?? ''}

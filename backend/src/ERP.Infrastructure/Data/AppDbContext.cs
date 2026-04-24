@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<ClientType> ClientTypes => Set<ClientType>();
     public DbSet<Zone> Zones => Set<Zone>();
     public DbSet<VatCondition> VatConditions => Set<VatCondition>();
+    public DbSet<VatRate> VatRates => Set<VatRate>();
     public DbSet<PaymentCondition> PaymentConditions => Set<PaymentCondition>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientDocument> ClientDocuments => Set<ClientDocument>();
@@ -103,6 +104,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ClientType>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Zone>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<VatCondition>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<VatRate>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PaymentCondition>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<PaymentMethod>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<SalesPayment>().HasQueryFilter(e => !e.IsDeleted);

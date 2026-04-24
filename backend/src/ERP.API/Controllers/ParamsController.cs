@@ -87,6 +87,50 @@ public class ParamsController : BaseController
     [HttpPut("vat-conditions/{id}")] [RequirePermission("params", "write")] public async Task<IActionResult> UpdateVatCondition(int id, [FromBody] UpdateVatConditionDto dto)
     { var e = await _db.VatConditions.FindAsync(id) ?? throw new KeyNotFoundException(); e.Name = dto.Name; e.AfipCode = dto.AfipCode; e.VatRate = dto.VatRate; e.IsActive = dto.IsActive; e.ModifiedBy = CurrentUserEmail; e.ModifiedAt = DateTime.UtcNow; await _uow.SaveChangesAsync(); return Ok(new { success = true }); }
 
+    // ---- VAT RATES (tasas de IVA para ítems de factura) ----
+    [HttpGet("vat-rates")] public async Task<IActionResult> GetVatRates()
+    {
+        // SQLite can't ORDER BY decimal server-side — sort in memory after materializing.
+        var rows = await _db.VatRates.ToListAsync();
+        var data = rows
+            .OrderBy(x => x.Rate)
+            .Select(x => new VatRateDto(x.Id, x.Code, x.Name, x.Rate, x.IsDefault, x.IsActive));
+        return Ok(new { success = true, data });
+    }
+
+    [HttpPost("vat-rates")] [RequirePermission("params", "write")] public async Task<IActionResult> CreateVatRate([FromBody] CreateVatRateDto dto)
+    {
+        if (await _db.VatRates.AnyAsync(v => v.Code == dto.Code))
+            throw new InvalidOperationException($"Ya existe una tasa con código '{dto.Code}'.");
+        if (dto.IsDefault)
+            foreach (var v in await _db.VatRates.Where(v => v.IsDefault).ToListAsync())
+                v.IsDefault = false;
+        var e = new VatRate { Code = dto.Code, Name = dto.Name, Rate = dto.Rate, IsDefault = dto.IsDefault, CreatedBy = CurrentUserEmail };
+        _db.VatRates.Add(e);
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true, data = e.Id });
+    }
+
+    [HttpPut("vat-rates/{id}")] [RequirePermission("params", "write")] public async Task<IActionResult> UpdateVatRate(int id, [FromBody] UpdateVatRateDto dto)
+    {
+        var e = await _db.VatRates.FindAsync(id) ?? throw new KeyNotFoundException();
+        if (dto.IsDefault)
+            foreach (var v in await _db.VatRates.Where(v => v.IsDefault && v.Id != id).ToListAsync())
+                v.IsDefault = false;
+        e.Name = dto.Name; e.Rate = dto.Rate; e.IsDefault = dto.IsDefault; e.IsActive = dto.IsActive;
+        e.ModifiedBy = CurrentUserEmail; e.ModifiedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    [HttpDelete("vat-rates/{id}")] [RequirePermission("params", "delete")] public async Task<IActionResult> DeleteVatRate(int id)
+    {
+        var e = await _db.VatRates.FindAsync(id) ?? throw new KeyNotFoundException();
+        e.IsDeleted = true; e.DeletedBy = CurrentUserEmail; e.DeletedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
     // ---- PAYMENT CONDITIONS ----
     [HttpGet("payment-conditions")] public async Task<IActionResult> GetPaymentConditions()
         => Ok(new { success = true, data = await _db.PaymentConditions.Select(x => new PaymentConditionDto(x.Id, x.Code, x.Name, x.Description, x.DueDays, x.IsActive)).ToListAsync() });
@@ -112,5 +156,23 @@ public class ParamsController : BaseController
     { var cfg = await _db.SystemConfigs.FirstOrDefaultAsync() ?? throw new KeyNotFoundException(); return Ok(new { success = true, data = new SystemConfigDto(cfg.Id, cfg.CompanyName, cfg.CompanyAddress, cfg.CompanyPhone, cfg.CompanyEmail, cfg.CompanyCuit, cfg.LogoUrl, cfg.Website, cfg.Currency, cfg.CurrencySymbol, cfg.AllowNegativeStock, cfg.Timezone) }); }
 
     [HttpPut("system-config")] [RequirePermission("params", "write")] public async Task<IActionResult> UpdateSystemConfig([FromBody] UpdateSystemConfigDto dto)
-    { var cfg = await _db.SystemConfigs.FirstOrDefaultAsync() ?? throw new KeyNotFoundException(); cfg.CompanyName = dto.CompanyName; cfg.CompanyAddress = dto.CompanyAddress; cfg.CompanyPhone = dto.CompanyPhone; cfg.CompanyEmail = dto.CompanyEmail; cfg.CompanyCuit = dto.CompanyCuit; cfg.Website = dto.Website; cfg.Currency = dto.Currency; cfg.CurrencySymbol = dto.CurrencySymbol; cfg.AllowNegativeStock = dto.AllowNegativeStock; cfg.Timezone = dto.Timezone; cfg.ModifiedBy = CurrentUserEmail; cfg.ModifiedAt = DateTime.UtcNow; await _uow.SaveChangesAsync(); return Ok(new { success = true }); }
+    {
+        var cfg = await _db.SystemConfigs.FirstOrDefaultAsync() ?? throw new KeyNotFoundException();
+        cfg.CompanyName = dto.CompanyName; cfg.CompanyAddress = dto.CompanyAddress; cfg.CompanyPhone = dto.CompanyPhone;
+        cfg.CompanyEmail = dto.CompanyEmail; cfg.CompanyCuit = dto.CompanyCuit;
+        cfg.LogoUrl = string.IsNullOrWhiteSpace(dto.LogoUrl) ? null : dto.LogoUrl.Trim();
+        cfg.Website = dto.Website; cfg.Currency = dto.Currency; cfg.CurrencySymbol = dto.CurrencySymbol;
+        cfg.AllowNegativeStock = dto.AllowNegativeStock; cfg.Timezone = dto.Timezone;
+        cfg.ModifiedBy = CurrentUserEmail; cfg.ModifiedAt = DateTime.UtcNow;
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true });
+    }
+
+    // Minimal branding endpoint — accessible to any authenticated user so the Header can render it
+    [HttpGet("branding")]
+    public async Task<IActionResult> GetBranding()
+    {
+        var cfg = await _db.SystemConfigs.FirstOrDefaultAsync();
+        return Ok(new { success = true, data = new { companyName = cfg?.CompanyName ?? "", logoUrl = cfg?.LogoUrl } });
+    }
 }

@@ -148,7 +148,7 @@ export default function ClientsPage() {
             <button className="btn-primary" onClick={handleSubmit} disabled={saveMutation.isPending}>Guardar</button>
           </>
         }>
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group"><label className="label">Código *</label><input className="input" required value={form.code ?? ''} onChange={e => setForm((f: any) => ({ ...f, code: e.target.value }))} disabled={!!modal.data} /></div>
           <div className="form-group"><label className="label">Razón Social *</label><input className="input" required value={form.businessName ?? ''} onChange={e => setForm((f: any) => ({ ...f, businessName: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Nombre Comercial</label><input className="input" value={form.tradeName ?? ''} onChange={e => setForm((f: any) => ({ ...f, tradeName: e.target.value }))} /></div>

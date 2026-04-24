@@ -111,7 +111,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'sales-by-period' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-blue-700">{data.totalInvoices}</p>
                 <p className="text-sm text-gray-500 mt-1">Facturas</p>
@@ -212,7 +212,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'payments' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-green-700">{fmt(data.totalReceived)}</p>
                 <p className="text-sm text-gray-500 mt-1">Cobrado</p>
@@ -245,7 +245,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'cash' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-green-700">{fmt(data.totalIncome)}</p>
                 <p className="text-sm text-gray-500 mt-1">Ingresos</p>
@@ -282,7 +282,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'receivables' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-amber-700">{fmt(data.totalDue)}</p>
                 <p className="text-sm text-gray-500 mt-1">Total por cobrar</p>
@@ -306,7 +306,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'overdue-installments' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-red-700">{data.count}</p>
                 <p className="text-sm text-gray-500 mt-1">Cuotas vencidas</p>
@@ -338,7 +338,7 @@ export default function ReportsPage() {
 
         {!isLoading && active === 'payables' && data && (
           <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
                 <p className="text-2xl font-bold text-amber-700">{fmt(data.totalDue)}</p>
                 <p className="text-sm text-gray-500 mt-1">Total por pagar</p>

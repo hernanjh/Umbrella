@@ -195,6 +195,22 @@ public class UploadsController : BaseController
         return Ok(new { success = true });
     }
 
+    // ---------- Company logo ----------
+
+    [HttpPost("api/params/system-config/logo")]
+    public async Task<IActionResult> UploadLogo(IFormFile file)
+    {
+        Validate(file, AllowedImage);
+        var url = await SaveFileAsync(file, "branding");
+        var cfg = await _db.SystemConfigs.FirstOrDefaultAsync() ?? throw new KeyNotFoundException();
+        cfg.LogoUrl = url;
+        cfg.ModifiedBy = CurrentUserEmail;
+        cfg.ModifiedAt = DateTime.UtcNow;
+        _db.SystemConfigs.Update(cfg);
+        await _uow.SaveChangesAsync();
+        return Ok(new { success = true, data = new { logoUrl = url } });
+    }
+
     // ---------- Helpers ----------
 
     private static void Validate(IFormFile? file, string[] allowed)

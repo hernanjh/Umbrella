@@ -106,7 +106,7 @@ export default function ProductsPage() {
       </div>
       <Modal open={modal.open} onClose={() => setModal({ open: false })} title={modal.data ? 'Editar Producto' : 'Nuevo Producto'} size="2xl"
         footer={<><button className="btn-secondary" onClick={() => setModal({ open: false })}>Cancelar</button><button className="btn-primary" onClick={handleSubmit} disabled={saveMutation.isPending}>Guardar</button></>}>
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group"><label className="label">Código *</label><input className="input" required value={form.code ?? ''} onChange={e => setForm((f: any) => ({ ...f, code: e.target.value }))} disabled={!!modal.data} /></div>
           <div className="form-group"><label className="label">Nombre *</label><input className="input" required value={form.name ?? ''} onChange={e => setForm((f: any) => ({ ...f, name: e.target.value }))} /></div>
           <div className="form-group"><label className="label">Marca</label><input className="input" value={form.brand ?? ''} onChange={e => setForm((f: any) => ({ ...f, brand: e.target.value }))} /></div>

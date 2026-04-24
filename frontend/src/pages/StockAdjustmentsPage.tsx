@@ -69,7 +69,7 @@ export default function StockAdjustmentsPage() {
             <button className="btn-secondary btn-sm" onClick={addAdjItem}><Plus className="w-3 h-3" /> Agregar</button>
           </div>
           {adjItems.map((item, idx) => (
-            <div key={idx} className="grid grid-cols-3 gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <SearchAutocomplete value={item.productId ? { id: item.productId, label: item.productName } : null}
                 onChange={opt => { if (opt) { updateAdjItem(idx, 'productId', opt.id); updateAdjItem(idx, 'productName', opt.label) } }}
                 onSearch={async (t) => { const r = await productsService.search(t); return r.map((p: any) => ({ id: p.id, label: p.name })) }}

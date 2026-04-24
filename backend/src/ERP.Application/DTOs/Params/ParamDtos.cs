@@ -39,12 +39,17 @@ public record SystemConfigDto(
     string Timezone
 );
 
+public record VatRateDto(int Id, string Code, string Name, decimal Rate, bool IsDefault, bool IsActive);
+public record CreateVatRateDto(string Code, string Name, decimal Rate, bool IsDefault);
+public record UpdateVatRateDto(string Name, decimal Rate, bool IsDefault, bool IsActive);
+
 public record UpdateSystemConfigDto(
     string CompanyName,
     string? CompanyAddress,
     string? CompanyPhone,
     string? CompanyEmail,
     string? CompanyCuit,
+    string? LogoUrl,
     string? Website,
     string Currency,
     string CurrencySymbol,

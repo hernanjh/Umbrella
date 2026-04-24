@@ -29,7 +29,7 @@ export default function CashSessionDetailPage() {
           </div>
 
           {data.status === 'closed' && (
-            <div className="card p-4 grid grid-cols-3 text-sm">
+            <div className="card p-4 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
               <div><div className="text-gray-500">Esperado</div><div className="font-mono">{fmt(data.expectedBalance)}</div></div>
               <div><div className="text-gray-500">Contado</div><div className="font-mono">{fmt(data.countedBalance)}</div></div>
               <div><div className="text-gray-500">Diferencia</div><div className={`font-mono ${+data.differenceAmount !== 0 ? 'text-amber-700 dark:text-amber-400' : ''}`}>{fmt(data.differenceAmount)}</div></div>

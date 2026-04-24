@@ -9,15 +9,7 @@ import { Plus, Trash2, Save, ArrowLeft, CheckCircle, FileDown } from 'lucide-rea
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 
-const VAT_OPTIONS = [
-  { id: 0, label: '0%' },
-  { id: 105, label: '10.5%' },
-  { id: 21, label: '21%' },
-  { id: 27, label: '27%' },
-]
-const vatIdToRate = (id: number) => id === 105 ? 10.5 : id
-const vatRateToId = (rate: number) => rate === 10.5 ? 105 : rate
-
+// VAT options come from /params/vat-rates (parametrization).
 interface PurchaseItem { productId: number; productName: string; quantity: number; unitPrice: number; discountPercentage: number; vatRate: number; sortOrder: number }
 
 export default function PurchaseInvoiceFormPage() {
@@ -40,7 +32,10 @@ export default function PurchaseInvoiceFormPage() {
   const { data: locations } = useQuery({ queryKey: ['stock-locations'], queryFn: stockService.getLocations })
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
   const { data: invoiceTypes } = useQuery({ queryKey: ['invoice-types'], queryFn: paramsService.getInvoiceTypes })
+  const { data: vatRates } = useQuery({ queryKey: ['vat-rates'], queryFn: paramsService.getVatRates })
   const purchaseInvoiceTypes = useMemo(() => (invoiceTypes ?? []).filter((it: any) => it.kind === 'purchase' && it.isActive), [invoiceTypes])
+  const activeVatRates = useMemo(() => (vatRates ?? []).filter((v: any) => v.isActive), [vatRates])
+  const defaultVatRate = useMemo(() => activeVatRates.find((v: any) => v.isDefault)?.rate ?? 21, [activeVatRates])
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['purchase-invoice', id],
@@ -73,7 +68,7 @@ export default function PurchaseInvoiceFormPage() {
     setHydrated(true)
   }, [existingInvoice, isEdit, hydrated])
 
-  const addItem = () => setItems(prev => [...prev, { productId: 0, productName: '', quantity: 1, unitPrice: 0, discountPercentage: 0, vatRate: 21, sortOrder: prev.length }])
+  const addItem = () => setItems(prev => [...prev, { productId: 0, productName: '', quantity: 1, unitPrice: 0, discountPercentage: 0, vatRate: defaultVatRate, sortOrder: prev.length }])
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx))
   const updateItem = (idx: number, field: keyof PurchaseItem, value: any) => setItems(prev => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it))
 
@@ -140,7 +135,7 @@ export default function PurchaseInvoiceFormPage() {
             <button className="btn-primary" onClick={handleSave} disabled={saveMutation.isPending}><Save className="w-4 h-4" /> Guardar</button>
           )}
         </>} />
-      <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <SearchAutocomplete label="Tipo" value={selectedInvoiceType} onChange={setSelectedInvoiceType} disabled={!editable}
           onSearch={async (t) => purchaseInvoiceTypes.filter((it: any) => it.name.toLowerCase().includes((t ?? '').toLowerCase()) || it.code.toLowerCase().includes((t ?? '').toLowerCase())).map((it: any) => ({ id: it.id, label: it.name, sublabel: it.code }))} />
         <div className="form-group"><label className="label">Fecha</label><input type="date" className="input" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} disabled={!editable} /></div>
@@ -176,10 +171,17 @@ export default function PurchaseInvoiceFormPage() {
                     <td><input className="input w-20" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(idx, 'quantity', +e.target.value)} disabled={!editable} /></td>
                     <td><input className="input w-28" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, 'unitPrice', +e.target.value)} disabled={!editable} /></td>
                     <td><input className="input w-20" type="number" min="0" max="100" value={item.discountPercentage} onChange={e => updateItem(idx, 'discountPercentage', +e.target.value)} disabled={!editable} /></td>
-                    <td className="min-w-[100px]">
-                      <SearchAutocomplete value={{ id: vatRateToId(item.vatRate), label: `${item.vatRate}%` }} disabled={!editable}
-                        onChange={opt => { if (opt) updateItem(idx, 'vatRate', vatIdToRate(opt.id)) }}
-                        onSearch={async () => VAT_OPTIONS} />
+                    <td className="min-w-[110px]">
+                      <select className="input w-24" disabled={!editable} value={item.vatRate}
+                        onChange={e => updateItem(idx, 'vatRate', +e.target.value)}>
+                        {activeVatRates.length === 0 && <option value={item.vatRate}>{item.vatRate}%</option>}
+                        {activeVatRates.map((v: any) => (
+                          <option key={v.id} value={v.rate}>{v.name}</option>
+                        ))}
+                        {activeVatRates.length > 0 && activeVatRates.every((v: any) => +v.rate !== +item.vatRate) && (
+                          <option value={item.vatRate}>{item.vatRate}%</option>
+                        )}
+                      </select>
                     </td>
                     <td className="font-mono font-medium">$ {net.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     <td>{editable && <button className="text-red-500" onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4" /></button>}</td>

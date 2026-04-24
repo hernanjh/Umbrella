@@ -23,14 +23,8 @@ interface InvoiceItem {
   sortOrder: number
 }
 
-const VAT_OPTIONS = [
-  { id: 0, label: '0%' },
-  { id: 105, label: '10.5%' },
-  { id: 21, label: '21%' },
-  { id: 27, label: '27%' },
-]
-const vatIdToRate = (id: number) => id === 105 ? 10.5 : id
-const vatRateToId = (rate: number) => rate === 10.5 ? 105 : rate
+// VAT options come from the backend parametrization (/params/vat-rates).
+// Each VatRate row has an Id and its Rate; we use {id: vatRateId, label: "21%"} in the autocomplete.
 
 export default function SalesInvoiceFormPage() {
   const { id } = useParams()
@@ -52,8 +46,11 @@ export default function SalesInvoiceFormPage() {
   const { data: paymentConditions } = useQuery({ queryKey: ['payment-conditions'], queryFn: paramsService.getPaymentConditions })
   const { data: priceLists } = useQuery({ queryKey: ['price-lists-all'], queryFn: () => priceListsService.getAll({ page: 1, pageSize: 200 }) })
   const { data: invoiceTypes } = useQuery({ queryKey: ['invoice-types', 'sales'], queryFn: paramsService.getInvoiceTypes })
+  const { data: vatRates } = useQuery({ queryKey: ['vat-rates'], queryFn: paramsService.getVatRates })
 
   const salesInvoiceTypes = useMemo(() => (invoiceTypes ?? []).filter((it: any) => it.kind === 'sales' && it.isActive), [invoiceTypes])
+  const activeVatRates = useMemo(() => (vatRates ?? []).filter((v: any) => v.isActive), [vatRates])
+  const defaultVatRate = useMemo(() => activeVatRates.find((v: any) => v.isDefault)?.rate ?? 21, [activeVatRates])
 
   const { data: existingInvoice } = useQuery({
     queryKey: ['sales-invoice', id],
@@ -128,7 +125,7 @@ export default function SalesInvoiceFormPage() {
   const addItem = () => setItems(prev => [...prev, {
     productId: 0, productName: '',
     stockLocationId: 0, stockLocationName: '', stockOptions: [],
-    quantity: 1, unitPrice: 0, discountPercentage: 0, vatRate: 21, sortOrder: prev.length,
+    quantity: 1, unitPrice: 0, discountPercentage: 0, vatRate: defaultVatRate, sortOrder: prev.length,
   }])
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx))
   const updateItem = (idx: number, patch: Partial<InvoiceItem>) =>
@@ -243,7 +240,7 @@ export default function SalesInvoiceFormPage() {
         } />
 
       {/* Header */}
-      <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         <SearchAutocomplete label="Tipo" required value={selectedInvoiceType}
           onChange={setSelectedInvoiceType}
           onSearch={async (t) => salesInvoiceTypes.filter((it: any) => it.name.toLowerCase().includes((t ?? '').toLowerCase()) || it.code.toLowerCase().includes((t ?? '').toLowerCase()))
@@ -320,10 +317,18 @@ export default function SalesInvoiceFormPage() {
                     <td><input className="input w-20" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(idx, { quantity: +e.target.value })} /></td>
                     <td><input className="input w-28" type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => updateItem(idx, { unitPrice: +e.target.value })} /></td>
                     <td><input className="input w-20" type="number" min="0" max="100" step="0.01" value={item.discountPercentage} onChange={e => updateItem(idx, { discountPercentage: +e.target.value })} /></td>
-                    <td className="min-w-[100px]">
-                      <SearchAutocomplete value={{ id: vatRateToId(item.vatRate), label: `${item.vatRate}%` }}
-                        onChange={opt => { if (opt) updateItem(idx, { vatRate: vatIdToRate(opt.id) }) }}
-                        onSearch={async () => VAT_OPTIONS} />
+                    <td className="min-w-[110px]">
+                      <select className="input w-24" value={item.vatRate}
+                        onChange={e => updateItem(idx, { vatRate: +e.target.value })}>
+                        {activeVatRates.length === 0 && <option value={item.vatRate}>{item.vatRate}%</option>}
+                        {activeVatRates.map((v: any) => (
+                          <option key={v.id} value={v.rate}>{v.name}</option>
+                        ))}
+                        {/* Preserve current value if it isn't in the active list (legacy invoices) */}
+                        {activeVatRates.every((v: any) => +v.rate !== +item.vatRate) && activeVatRates.length > 0 && (
+                          <option value={item.vatRate}>{item.vatRate}%</option>
+                        )}
+                      </select>
                     </td>
                     <td className="font-mono font-medium">$ {lineTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</td>
                     <td><button className="text-red-500 hover:text-red-700" onClick={() => removeItem(idx)}><Trash2 className="w-4 h-4" /></button></td>

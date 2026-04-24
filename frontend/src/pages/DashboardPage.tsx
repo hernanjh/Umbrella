@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { salesService, clientsService, productsService, reportsService } from '../services'
 import StatCard from '../components/ui/StatCard'
+import { StatusBadge } from '../components/ui/Badge'
 import { FileText, Package, Users, DollarSign, CreditCard, AlertTriangle, Wallet, TrendingDown, CalendarDays } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subDays } from 'date-fns'
@@ -116,7 +117,7 @@ export default function DashboardPage() {
                   <td>{inv.clientName}</td>
                   <td>{format(new Date(inv.invoiceDate), 'dd/MM/yyyy')}</td>
                   <td>$ {inv.total.toLocaleString()}</td>
-                  <td><span className="badge-blue">{inv.status}</span></td>
+                  <td><StatusBadge status={inv.status} /></td>
                 </tr>
               ))}
             </tbody>

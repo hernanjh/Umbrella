@@ -178,6 +178,17 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
+        if (!await context.VatRates.AnyAsync())
+        {
+            context.VatRates.AddRange(
+                new VatRate { Code = "IVA0",    Name = "0%",    Rate = 0,    IsDefault = false, CreatedBy = "system" },
+                new VatRate { Code = "IVA105",  Name = "10,5%", Rate = 10.5m, IsDefault = false, CreatedBy = "system" },
+                new VatRate { Code = "IVA21",   Name = "21%",   Rate = 21,   IsDefault = true,  CreatedBy = "system" },
+                new VatRate { Code = "IVA27",   Name = "27%",   Rate = 27,   IsDefault = false, CreatedBy = "system" }
+            );
+            await context.SaveChangesAsync();
+        }
+
         if (!await context.PaymentMethods.AnyAsync())
         {
             context.PaymentMethods.AddRange(
@@ -280,6 +291,26 @@ public static class DbSeeder
         if (!await ColumnExistsAsync(context, "Users", "ZoneId"))
         {
             await context.Database.ExecuteSqlRawAsync("ALTER TABLE Users ADD COLUMN ZoneId INTEGER NULL");
+        }
+
+        if (!await TableExistsAsync(context, "VatRates"))
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE TABLE VatRates (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL DEFAULT '',
+                    Name TEXT NOT NULL DEFAULT '',
+                    Rate decimal(18,4) NOT NULL DEFAULT 0,
+                    IsDefault INTEGER NOT NULL DEFAULT 0,
+                    IsActive INTEGER NOT NULL DEFAULT 1,
+                    IsDeleted INTEGER NOT NULL DEFAULT 0,
+                    CreatedBy TEXT NOT NULL DEFAULT '',
+                    CreatedAt TEXT NOT NULL,
+                    ModifiedBy TEXT NULL,
+                    ModifiedAt TEXT NULL,
+                    DeletedBy TEXT NULL,
+                    DeletedAt TEXT NULL
+                )");
         }
 
         if (!await TableExistsAsync(context, "NotificationReads"))

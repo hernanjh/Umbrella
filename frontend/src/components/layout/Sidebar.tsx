@@ -2,13 +2,18 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Truck, Package, FileText, ShoppingCart,
   BarChart2, Settings, ChevronDown, ChevronRight, Warehouse,
-  Building2, Shield, Wallet
+  Building2, Shield, Wallet, X
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
 import { useAuthStore } from '../../store/authStore'
 
-interface SidebarProps { collapsed: boolean; onToggle: () => void }
+interface SidebarProps {
+  collapsed: boolean
+  mobileOpen: boolean
+  onCloseMobile: () => void
+  onToggle: () => void
+}
 
 type NavChild = { label: string; to: string; module?: string }
 type NavItem = { label: string; icon: any; to?: string; module?: string; children?: NavChild[] }
@@ -59,6 +64,7 @@ const NAV: NavItem[] = [
       { label: 'Tipos de Cliente', to: '/params/client-types', module: 'params' },
       { label: 'Zonas', to: '/params/zones', module: 'params' },
       { label: 'Cond. de IVA', to: '/params/vat-conditions', module: 'params' },
+      { label: 'Tasas de IVA', to: '/params/vat-rates', module: 'params' },
       { label: 'Cond. de Pago', to: '/params/payment-conditions', module: 'params' },
       { label: 'Formas de Pago', to: '/params/payment-methods', module: 'params' },
       { label: 'Tipos de Comprobante', to: '/params/invoice-types', module: 'params' },
@@ -68,7 +74,7 @@ const NAV: NavItem[] = [
   },
 ]
 
-export default function Sidebar({ collapsed }: SidebarProps) {
+export default function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const [openGroups, setOpenGroups] = useState<string[]>(['Ventas', 'Finanzas'])
   const hasPermission = useAuthStore(s => s.hasPermission)
   const isAdmin = useAuthStore(s => s.isAdmin)
@@ -87,48 +93,77 @@ export default function Sidebar({ collapsed }: SidebarProps) {
     return { ...item, children: allowedChildren }
   }).filter((x): x is NavItem => x !== null)
 
+  // On mobile the sidebar becomes always-expanded (full-width-ish) overlay.
+  const isMobileLike = mobileOpen
+
   return (
-    <aside className={clsx(
-      'flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-20',
-      collapsed ? 'w-16' : 'w-64'
-    )}>
-      {/* Logo */}
+    <aside
+      className={clsx(
+        'flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 z-40',
+        // Desktop: part of the flex layout, toggles between collapsed/expanded widths
+        'md:relative md:translate-x-0 md:transition-all md:duration-300',
+        collapsed ? 'md:w-16' : 'md:w-64',
+        // Mobile: fixed off-canvas, slides in
+        'fixed inset-y-0 left-0 w-64 transform transition-transform duration-300',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      )}
+    >
+      {/* Logo + mobile close button */}
       <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 h-[60px]">
         <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
           <Building2 className="w-5 h-5 text-white" />
         </div>
-        {!collapsed && <span className="font-bold text-gray-900 dark:text-white text-lg">Umbrella ERP</span>}
+        {(!collapsed || isMobileLike) && (
+          <span className="font-bold text-gray-900 dark:text-white text-lg flex-1">Umbrella ERP</span>
+        )}
+        {/* Close button on mobile only */}
+        <button
+          className="md:hidden btn-ghost p-1 rounded-lg"
+          onClick={onCloseMobile}
+          aria-label="Cerrar menú"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {visibleItems.map(item => (
           item.to ? (
-            <NavLink key={item.to} to={item.to}
-              className={({ isActive }) => clsx('sidebar-item', isActive && 'active')}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onCloseMobile}
+              className={({ isActive }) => clsx('sidebar-item', isActive && 'active')}
+            >
               <item.icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              {(!collapsed || isMobileLike) && <span>{item.label}</span>}
             </NavLink>
           ) : (
             <div key={item.label}>
               <button
                 onClick={() => toggleGroup(item.label)}
-                className="sidebar-item w-full justify-between">
+                className="sidebar-item w-full justify-between"
+              >
                 <div className="flex items-center gap-3">
                   <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  {(!collapsed || isMobileLike) && <span>{item.label}</span>}
                 </div>
-                {!collapsed && (
+                {(!collapsed || isMobileLike) && (
                   openGroups.includes(item.label)
                     ? <ChevronDown className="w-3 h-3" />
                     : <ChevronRight className="w-3 h-3" />
                 )}
               </button>
-              {!collapsed && openGroups.includes(item.label) && (
+              {(!collapsed || isMobileLike) && openGroups.includes(item.label) && (
                 <div className="ml-7 mt-0.5 space-y-0.5">
                   {item.children!.map(child => (
-                    <NavLink key={child.to} to={child.to}
-                      className={({ isActive }) => clsx('sidebar-item text-xs', isActive && 'active')}>
+                    <NavLink
+                      key={child.to}
+                      to={child.to}
+                      onClick={onCloseMobile}
+                      className={({ isActive }) => clsx('sidebar-item text-xs', isActive && 'active')}
+                    >
                       {child.label}
                     </NavLink>
                   ))}

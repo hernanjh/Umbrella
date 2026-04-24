@@ -122,6 +122,15 @@ export const paramsService = {
   deleteInvoiceType: (id: number) => api.delete(`/params/invoice-types/${id}`),
   getSystemConfig: () => api.get('/params/system-config').then(r => r.data.data),
   updateSystemConfig: (data: any) => api.put('/params/system-config', data),
+  getBranding: () => api.get('/params/branding').then(r => r.data.data),
+  uploadLogo: (file: File) => {
+    const fd = new FormData(); fd.append('file', file)
+    return api.post('/params/system-config/logo', fd).then(r => r.data.data)
+  },
+  getVatRates: () => api.get('/params/vat-rates').then(r => r.data.data),
+  createVatRate: (data: any) => api.post('/params/vat-rates', data),
+  updateVatRate: (id: number, data: any) => api.put(`/params/vat-rates/${id}`, data),
+  deleteVatRate: (id: number) => api.delete(`/params/vat-rates/${id}`),
 }
 
 export const usersService = {
